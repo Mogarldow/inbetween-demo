@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Icon, Logo } from "../ui/Icon";
 import type { Client, Checkin, Message, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
 import type { QKind } from "@/lib/questionnaires";
 import { FindSheet, SoloCard, MicButton, OutreachCard, WeekCard, PrepCard, PrivacyCard, QuestionnaireSheet, QuestionnairesCard, RemindersCard, Toast } from "./extras";
@@ -49,14 +50,14 @@ export default function KlientPage() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <h1><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Inbetween</Link></h1>
+          <Link href="/" className="brand-link"><Logo /><h1>Inbetween</h1></Link>
           <span className="tag">Aplikace klienta</span>
         </div>
         <div className="seg" role="group" aria-label="Režim">
           <a href="/klient" aria-pressed={!state.client.solo} className="segl">S psychologem</a>
           <a href="/klient?id=nikola" aria-pressed={state.client.solo} className="segl">Zatím bez psychologa</a>
         </div>
-        <Link className="note" href="/psycholog">Přejít na pohled psychologa</Link>
+        <Link className="btn ghost top-link" href="/psycholog"><Icon name="dashboard" size={18} />Pohled psychologa</Link>
       </header>
       <main className="stage-single">
         <div className="phone">
@@ -112,8 +113,9 @@ export default function KlientPage() {
             <Toast toast={toast} onClose={closeToast} />
 
             <nav className="tabs" role="tablist">
-              {([["home", "Dnes"], ["chat", "Parťák"], ["plan", "Plán"]] as const).map(([k, l]) => (
+              {([["home", "Dnes", "today"], ["chat", "Parťák", "forum"], ["plan", "Plán", "assignment"]] as const).map(([k, l, ic]) => (
                 <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); if (k !== "chat") load(); }}>
+                  <span className="nav-ind"><Icon name={ic} size={22} fill={tab === k} /></span>
                   {l}
                 </button>
               ))}

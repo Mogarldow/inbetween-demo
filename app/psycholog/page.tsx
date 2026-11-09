@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Avatar, Icon, Logo } from "../ui/Icon";
 import type { Alert, Checkin, Client, Event, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
 import { OutreachBox, PrepBox, ScoresBox, SessionNoteBox, WaitlistView, consentLine } from "./extras";
 import { LibraryView, WeekPicker } from "./library";
@@ -54,10 +55,13 @@ export default function PsychologPage() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <h1><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Inbetween</Link></h1>
+          <Link href="/" className="brand-link"><Logo /><h1>Inbetween</h1></Link>
           <span className="tag">Přehled psychologa</span>
         </div>
-        <Link className="note" href="/klient">Přejít na aplikaci klienta</Link>
+        <div className="top-right">
+          <Link className="btn ghost top-link" href="/klient"><Icon name="smartphone" size={18} />Aplikace klienta</Link>
+          <span className="me"><Avatar name="Jana Dvořáková" size={36} /><span><b>Mgr. Jana Dvořáková</b><small>Psycholožka</small></span></span>
+        </div>
       </header>
       {error && <p className="err">{error}</p>}
       <div className="pro">
@@ -67,6 +71,7 @@ export default function PsychologPage() {
             const stale = !c.waiting && daysAgo(c.last_checkin) >= 3;
             return (
               <button key={c.id} className="cl" aria-current={c.id === selected} onClick={() => { setSelected(c.id); setDetail(null); }}>
+                {c.waiting ? <span className="cl-ic"><Icon name="hourglass_top" size={20} /></span> : <Avatar name={c.name} size={36} />}
                 <b>{c.name}</b>
                 <small>{c.next_session}</small>
                 {c.open_alerts > 0 ? <span className="pill risk">Riziko</span>
@@ -77,11 +82,13 @@ export default function PsychologPage() {
             );
           })}
           <button className="cl" aria-current={selected === NEW} onClick={() => { setSelected(NEW); setDetail(null); }}>
-            <b>+ Nový klient</b>
+            <span className="cl-ic"><Icon name="person_add" size={20} /></span>
+            <b>Nový klient</b>
             <small>Přidat a poslat pozvánku</small>
           </button>
           <h3 style={{ marginTop: 14 }}>Nástroje</h3>
           <button className="cl" aria-current={selected === LIB} onClick={() => { setSelected(LIB); setDetail(null); }}>
+            <span className="cl-ic"><Icon name="library_books" size={20} /></span>
             <b>Moje knihovna</b>
             <small>Úkoly, KBT, techniky, poznámky</small>
           </button>
