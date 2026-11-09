@@ -4,12 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Alert, Checkin, Client, Event, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
 import { OutreachBox, PrepBox, ScoresBox, SessionNoteBox, WaitlistView, consentLine } from "./extras";
+import { LibraryView, WeekPicker } from "./library";
+import type { Material } from "@/lib/materials";
 import { TECHNIQUES, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 type ListClient = Client & { open_alerts: number; last_checkin: string | null };
-type Detail = { client: Client; checkins: Checkin[]; tasks: Task[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[]; scores: Score[]; outreach: Outreach[] };
+type Detail = { client: Client; checkins: Checkin[]; tasks: Task[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[]; scores: Score[]; outreach: Outreach[]; materials: Material[] };
 
 const POLL_MS = 3000;
+const LIB = "__knihovna";
 const post = (url: string, body: unknown, method = "POST") =>
   fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const daysAgo = (iso: string | null) => (iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 99);
@@ -28,11 +31,11 @@ export default function PsychologPage() {
     try {
       const [l, d] = await Promise.all([
         fetch("/api/state", { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/state?client=${selected}&view=psycholog`, { cache: "no-store" }).then((r) => r.json()),
+        selected === LIB ? Promise.resolve({}) : fetch(`/api/state?client=${selected}&view=psycholog`, { cache: "no-store" }).then((r) => r.json()),
       ]);
       if (l.error || d.error) throw new Error(l.error || d.error);
       setClients(l.clients);
-      setDetail(d);
+      setDetail(selected === LIB ? null : d);
       setError("");
     } catch {
       setError("Nepodařilo se načíst data. Běží databáze a je nastavená DATABASE_URL?");
@@ -71,9 +74,14 @@ export default function PsychologPage() {
               </button>
             );
           })}
+          <h3 style={{ marginTop: 14 }}>Nástroje</h3>
+          <button className="cl" aria-current={selected === LIB} onClick={() => { setSelected(LIB); setDetail(null); }}>
+            <b>Moje knihovna</b>
+            <small>Úkoly, KBT, techniky, poznámky</small>
+          </button>
           <div className="secure">Data v EU (Frankfurt), šifrovaná. Přístup jen vy a klient. Každé zobrazení se zapisuje do auditního logu.</div>
         </aside>
-        {detail?.client.waiting ? <WaitlistView client={detail.client} /> : detail ? <ClientDetail key={selected} d={detail} seen={seen.current} reload={load} /> : <div className="main"><p className="empty">Načítám…</p></div>}
+        {selected === LIB ? <LibraryView /> : detail?.client.waiting ? <WaitlistView client={detail.client} /> : detail ? <ClientDetail key={selected} d={detail} seen={seen.current} reload={load} /> : <div className="main"><p className="empty">Načítám…</p></div>}
       </div>
     </div>
   );
@@ -217,6 +225,8 @@ function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reloa
       </div>
 
       <SessionNoteBox client={d.client} onApplied={(p, t) => { setPlan(p); setAllowed(t); setPlanState(""); reload(); }} />
+
+      <WeekPicker key={d.client.id} clientId={d.client.id} firstName={d.client.name.split(" ")[0]} assigned={d.materials ?? []} onSaved={reload} />
 
       <div className="box">
         <div className="row"><h3>Plán a techniky pro parťáka</h3><span className="label">Upravuje jen psycholog</span></div>

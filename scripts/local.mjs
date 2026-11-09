@@ -2,6 +2,8 @@
 // Vestavěná databáze (PGlite ve složce .data) + živý Claude přes Claude Code na tomhle počítači.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, join } from "node:path";
 
 const win = process.platform === "win32";
 const run = (cmd, args, env = process.env) => spawnSync(cmd, args, { stdio: "inherit", shell: win, env });
@@ -9,15 +11,20 @@ const run = (cmd, args, env = process.env) => spawnSync(cmd, args, { stdio: "inh
 const env = { ...process.env, PORT: process.env.PORT || "3000" };
 delete env.DATABASE_URL; // lokálně vždy vestavěná databáze
 
+// Nativní instalace Claude Code na Windows dává claude.exe do %USERPROFILE%\.local\bin, která nemusí být v PATH.
+const localBin = join(homedir(), ".local", "bin");
+if (existsSync(join(localBin, win ? "claude.exe" : "claude"))) env.PATH = `${localBin}${delimiter}${env.PATH ?? env.Path ?? ""}`;
+if (win && env.Path) env.Path = env.PATH;
+
 if (env.ANTHROPIC_API_KEY) {
   console.log("AI: Claude API (ANTHROPIC_API_KEY)");
 } else {
-  const v = spawnSync("claude", ["--version"], { shell: win, encoding: "utf8" });
+  const v = spawnSync("claude", ["--version"], { shell: win, encoding: "utf8", env });
   if (v.status === 0) {
     env.CLAUDE_CLI = "1";
     console.log("AI: Claude Code", v.stdout.trim(), "(tvoje předplatné, bez API klíče)");
   } else {
-    console.log("AI: Claude Code nenalezen, běží ukázkové odpovědi. Nainstaluj Claude Code a přihlas se (claude), pak spusť znovu.");
+    console.log("AI: Claude Code nenalezen, běží ukázkové odpovědi. Nainstaluj Claude Code (npm install -g @anthropic-ai/claude-code), přihlas se příkazem claude a spusť znovu.");
   }
 }
 

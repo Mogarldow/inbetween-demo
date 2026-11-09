@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { Material } from "./materials";
 import type { Checkin, Client, Event, Message, Task, Alert, ThoughtRecord, Score } from "./db";
 import { CRISIS_TAG } from "./risk";
 import { SOURCE_TAG, type Technique } from "./techniques";
@@ -20,7 +21,18 @@ export const FALLBACK = {
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
 
-export function companionSystemPrompt(client: Client, checkins: Checkin[], techniques: Technique[]) {
+function materialsBlock(materials: Material[]) {
+  if (!materials.length) return "";
+  const label = { technika: "vlastní technika", ukol: "úkol na tento týden", kbt: "KBT cvičení", poznamka: "poznámka psychologa pro klienta" };
+  return `
+
+<od_psychologa_na_tento_tyden>
+Tohle psycholog klientovi na tento týden sám připravil a povolil. Můžeš to klientovi připomínat a provést ho tím, když se to hodí k situaci. Nic z toho neměň a nepřidávej vlastní úkoly. Tyto materiály neuváděj v řádku se zdroji.
+${materials.map((m) => `[${label[m.kind]}] ${m.title}${m.kind === "ukol" ? ` (cíl ${m.week_goal}× za týden)` : ""}\n${m.body}`).join("\n\n")}
+</od_psychologa_na_tento_tyden>`;
+}
+
+export function companionSystemPrompt(client: Client, checkins: Checkin[], techniques: Technique[], materials: Material[] = []) {
   if (client.solo) return soloSystemPrompt(client, checkins, techniques);
   const last = checkins.at(-1);
   const recent = checkins
@@ -49,7 +61,7 @@ ${techniques
 
 Poslední check-iny:
 ${recent || "zatím žádné"}
-${last ? `Dnešní stav: nálada ${last.mood}/5, úzkost ${last.anxiety}/10.` : ""}`;
+${last ? `Dnešní stav: nálada ${last.mood}/5, úzkost ${last.anxiety}/10.` : ""}${materialsBlock(materials)}`;
 }
 
 /** Uživatel zatím bez psychologa: obecný program, opatrnější AI, doporučí odborníka. */

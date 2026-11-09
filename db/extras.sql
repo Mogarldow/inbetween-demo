@@ -52,3 +52,27 @@ WHERE NOT EXISTS (SELECT 1 FROM messages WHERE client_id = 'nikola');
 UPDATE clients SET reminders = (SELECT reminders FROM clients WHERE id = 'petra') WHERE id = 'nikola' AND reminders = '[]'::jsonb;
 
 UPDATE clients SET reminders = (SELECT jsonb_agg(r) FROM jsonb_array_elements(reminders) r WHERE r->>'title' <> 'Příprava na sezení') WHERE id = 'nikola';
+
+-- Knihovna psychologa (ukázková data) a výběr na tento týden pro Petru
+INSERT INTO materials (kind, title, body, week_goal)
+SELECT * FROM (VALUES
+ ('kbt','Katastrofizace: tři scénáře','Když přijde myšlenka „bude to katastrofa“, napiš si: 1) nejhorší možný výsledek, 2) nejlepší možný výsledek, 3) nejpravděpodobnější výsledek. Pak se zeptej: Co bych v téhle situaci řekl/a kamarádovi?',3),
+ ('kbt','Behaviorální experiment: porada','Před poradou: Co přesně se stane, když řeknu jednu větu? Jak moc tomu věřím (0–100 %)? Po poradě: Co se stalo doopravdy? Jak moc teď věřím původní předpovědi?',2),
+ ('kbt','Seznam vyhýbání','Sepiš situace, kterým se kvůli úzkosti vyhýbáš, a ohodnoť každou 0–10 podle toho, jak moc se jí bojíš. Na sezení z nich postavíme žebříček expozic.',1),
+ ('ukol','Jedna věta na poradě','Na každé poradě řekni aspoň jednu větu nebo polož otázku. Nemusí být chytrá, stačí, že zazní.',3),
+ ('ukol','Tři dobré věci','Večer si zapiš tři věci, které se ten den povedly nebo tě potěšily, i kdyby byly malé.',5),
+ ('ukol','Telefonát místo zprávy','Jednou za týden vyřiď něco telefonem místo e-mailu nebo zprávy.',1),
+ ('technika','Bezpečné místo','Zavři oči a představ si místo, kde se cítíš v bezpečí. Všimni si, co tam vidíš, slyšíš a cítíš. Zůstaň tam 2–3 minuty a pomalu dýchej. Hodí se před usnutím nebo po náročné situaci.',3),
+ ('technika','Progresivní svalová relaxace (krátká)','Postupně na 5 vteřin zatni a pak uvolni svaly: ruce, ramena, obličej, břicho, nohy. Všimni si rozdílu mezi napětím a uvolněním. Celé trvá asi 5 minut.',3),
+ ('poznamka','Po sezení 5. 11.','Petro, minulý týden jste zvládla víc, než si myslíte: šla jste na poradu, i když se vám nechtělo. Úzkost před poradou je normální a sama odezní. Cílem není, aby zmizela, ale abyste neutíkala.',0),
+ ('poznamka','Když se nedaří','Jeden horší den neznamená, že se nic nezlepšuje. Zapište si, co se stalo, a přineste to na sezení. Nemusíte to řešit sama.',0)
+) v(kind, title, body, week_goal)
+WHERE NOT EXISTS (SELECT 1 FROM materials);
+
+INSERT INTO client_materials (client_id, material_id)
+SELECT 'petra', id FROM materials WHERE title IN ('Katastrofizace: tři scénáře','Jedna věta na poradě','Bezpečné místo','Po sezení 5. 11.')
+AND NOT EXISTS (SELECT 1 FROM client_materials WHERE client_id = 'petra');
+
+INSERT INTO tasks (client_id, title, hint, week_done, week_goal, material_id)
+SELECT 'petra', m.title, m.body, 1, m.week_goal, m.id FROM materials m
+WHERE m.title = 'Jedna věta na poradě' AND NOT EXISTS (SELECT 1 FROM tasks WHERE client_id = 'petra' AND material_id = m.id);

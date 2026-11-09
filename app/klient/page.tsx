@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Client, Checkin, Message, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
 import type { QKind } from "@/lib/questionnaires";
 import { FindSheet, SoloCard, MicButton, OutreachCard, WeekCard, PrepCard, PrivacyCard, QuestionnaireSheet, QuestionnairesCard, RemindersCard, Toast } from "./extras";
+import { KIND_LABEL, type Material } from "@/lib/materials";
 import { getTechnique, splitSources, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 let CLIENT_ID = "petra"; // demo: přihlášený klient (?id=nikola = uživatelka bez psychologa)
@@ -12,7 +13,7 @@ const CRISIS_TAG = "[KRIZE]";
 const MOODS: [number, string][] = [[1, "Hrozně"], [2, "Špatně"], [3, "Jde to"], [4, "Dobře"], [5, "Skvěle"]];
 const SUGGESTIONS = ["Zítra mám poradu a jsem z toho na nervy", "Nemůžu usnout", "Mám si zvýšit dávku léků?"];
 
-type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[]; scores: Score[]; outreach: Outreach[]; thoughts: ThoughtRecord[]; requested?: boolean };
+type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[]; scores: Score[]; outreach: Outreach[]; thoughts: ThoughtRecord[]; materials?: Material[]; requested?: boolean };
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -76,6 +77,19 @@ export default function KlientPage() {
                   <p className="note" style={{ margin: 0 }}>{state.client.solo ? "Obecný program „Zvládání stresu“ podle doporučení WHO a NHS. Až budeš mít psychologa, nastaví ti plán na míru." : "Plán nastavil tvůj psycholog. Parťák se ho drží a nic v něm nemění."}</p>
                   <div style={{ whiteSpace: "pre-wrap" }}>{state.client.plan}</div>
                 </div>
+                {!!state.materials?.filter((m) => m.kind !== "ukol").length && (
+                  <div className="card">
+                    <h3>Od psychologa na tento týden</h3>
+                    <p className="note" style={{ margin: 0 }}>Připravil/a to pro tebe {state.client.therapist}. Parťák ti s tím rád pomůže.</p>
+                    {state.materials.filter((m) => m.kind !== "ukol").map((m) => (
+                      <div className="from-th" key={m.id}>
+                        <small>{KIND_LABEL[m.kind]}</small>
+                        <b>{m.title}</b>
+                        <p>{m.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="card">
                   <h3>Moje techniky</h3>
                   <p className="note" style={{ margin: 0 }}>{state.client.solo ? "Základní sada z knihovny ověřených postupů, kterou spravují psychologové." : "Vybral je tvůj psycholog z knihovny ověřených postupů."}</p>

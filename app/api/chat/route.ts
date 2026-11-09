@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addAlert, addEvent, getClient, q, type Checkin, type Message } from "@/lib/db";
+import { addAlert, addEvent, getClient, q, type Checkin, type Message, getClientMaterials } from "@/lib/db";
 import { companionSystemPrompt, streamText } from "@/lib/claude";
 import { demoChatReply } from "@/lib/demo";
 import { getTechnique, retrieveTechniques, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
     await addAlert(clientId, "chat", "V chatu zazněla zmínka o ohrožení sebe. Parťák aktivoval krizový protokol.");
   }
 
-  const [checkins, history] = await Promise.all([
+  const [checkins, history, materials] = await Promise.all([
     q<Checkin>("SELECT * FROM (SELECT * FROM checkins WHERE client_id = $1 ORDER BY created_at DESC LIMIT 3) t ORDER BY created_at", [clientId]),
     q<Message>("SELECT * FROM (SELECT * FROM messages WHERE client_id = $1 ORDER BY created_at DESC LIMIT 20) t ORDER BY created_at", [clientId]),
+    getClientMaterials(clientId),
   ]);
 
   // Vybereme techniky z knihovny, které psycholog povolil a které k situaci sedí.
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   while (turns.length && turns[0].role !== "user") turns.shift();
 
   const { body } = streamText({
-    system: companionSystemPrompt(client, checkins, techniques),
+    system: companionSystemPrompt(client, checkins, techniques, materials),
     messages: turns,
     effort: "low",
     maxTokens: 2000,

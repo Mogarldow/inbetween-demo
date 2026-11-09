@@ -1,5 +1,5 @@
 -- Inbetween demo: datové schéma (PostgreSQL)
-DROP TABLE IF EXISTS waitlist, outreach, questionnaires, thought_records, alerts, events, messages, tasks, checkins, clients CASCADE;
+DROP TABLE IF EXISTS client_materials, materials, waitlist, outreach, questionnaires, thought_records, alerts, events, messages, tasks, checkins, clients CASCADE;
 
 CREATE TABLE clients (
   id            TEXT PRIMARY KEY,
@@ -109,3 +109,23 @@ CREATE INDEX ON alerts (client_id, created_at);
 CREATE INDEX ON thought_records (client_id, created_at);
 CREATE INDEX ON questionnaires (client_id, created_at);
 CREATE INDEX ON outreach (client_id, created_at);
+
+-- Knihovna psychologa: vlastní techniky, úkoly, KBT cvičení a poznámky.
+-- Psycholog z ní každý týden vybírá, co klientovi povolí (client_materials).
+CREATE TABLE materials (
+  id          SERIAL PRIMARY KEY,
+  kind        TEXT NOT NULL CHECK (kind IN ('technika','ukol','kbt','poznamka')),
+  title       TEXT NOT NULL,
+  body        TEXT NOT NULL DEFAULT '',
+  week_goal   INT NOT NULL DEFAULT 3,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE client_materials (
+  client_id    TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  material_id  INT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+  assigned_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (client_id, material_id)
+);
+
+ALTER TABLE tasks ADD COLUMN material_id INT REFERENCES materials(id) ON DELETE SET NULL;

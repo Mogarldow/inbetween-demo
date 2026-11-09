@@ -264,3 +264,14 @@ input[type=checkbox],input[type=range]{accent-color:var(--accent)}
 .seg a.segl{padding:8px 16px;color:var(--ink);font-weight:500;text-decoration:none;border-left:1px solid #747775;font-size:14px}
 .seg a.segl:first-child{border-left:0}
 .seg a.segl[aria-pressed="true"]{background:#D3E3FD;color:#041E49}
+/* Knihovna psychologa */
+.mat-kind{display:block;font-size:13px;font-weight:500;color:var(--muted);margin:4px 0 6px}
+.mat{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;border-top:1px solid var(--line);padding-top:10px}
+.mat p{margin:4px 0;font-size:14px;white-space:pre-wrap}
+.mat-actions{display:flex;gap:6px;flex-shrink:0}
+.mat-actions .btn.sm{margin-left:0}
+.mat-form{background:var(--surface-2)}
+input[type=number]{border:1px solid #747775;border-radius:8px;padding:6px 8px;background:var(--surface)}
+.from-th{border-left:3px solid var(--accent);padding-left:10px;margin-top:8px}
+.from-th small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.from-th p{margin:2px 0 0;font-size:14px;white-space:pre-wrap}

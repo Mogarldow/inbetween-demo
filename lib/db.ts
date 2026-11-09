@@ -84,6 +84,10 @@ export type ThoughtRecord = {
   id: number; situation: string; thought: string; emotion: string;
   intensity_before: number; balanced: string | null; intensity_after: number | null; created_at: string;
 };
+import type { Material } from "./materials";
+export type { Material } from "./materials";
+export const getClientMaterials = (id: string) =>
+  q<Material>("SELECT m.* FROM materials m JOIN client_materials cm ON cm.material_id = m.id WHERE cm.client_id = $1 ORDER BY m.kind, m.id", [id]);
 export type Score = { id: number; kind: "gad7" | "phq9"; score: number; item9: number | null; created_at: string };
 export type Outreach = { id: number; text: string; created_at: string };
 export type WaitPerson = { id: number; name: string; weeks: number; gad7: number; phq9: number; item9: number; modules_done: number; note: string | null; client_id: string | null };
@@ -96,7 +100,7 @@ export async function getClient(id: string) {
 
 /** Vše o klientovi. Pro psychologa (forTherapist) respektuje souhlasy klienta se sdílením. */
 export async function getClientState(id: string, forTherapist = false) {
-  const [client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach, req] = await Promise.all([
+  const [client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach, req, materials] = await Promise.all([
     getClient(id),
     q<Checkin>("SELECT * FROM (SELECT * FROM checkins WHERE client_id = $1 ORDER BY created_at DESC LIMIT 7) t ORDER BY created_at", [id]),
     q<Task>("SELECT * FROM tasks WHERE client_id = $1 ORDER BY id", [id]),
@@ -107,15 +111,16 @@ export async function getClientState(id: string, forTherapist = false) {
     q<Score>("SELECT * FROM questionnaires WHERE client_id = $1 ORDER BY created_at", [id]),
     q<Outreach>("SELECT * FROM outreach WHERE client_id = $1 ORDER BY created_at", [id]),
     q("SELECT 1 FROM waitlist WHERE client_id = $1", [id]),
+    getClientMaterials(id),
   ]);
   const requested = req.length > 0; // uživatel bez psychologa už požádal o psychologa
   if (forTherapist && client) {
     return {
-      client, checkins, tasks, events, alerts, outreach,
+      client, checkins, tasks, events, alerts, outreach, materials,
       messages: client.share_chat ? messages : [],
       thoughts: client.share_thoughts ? thoughts : [],
       scores: client.share_scores ? scores : [],
     };
   }
-  return { client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach, requested };
+  return { client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach, requested, materials };
 }
