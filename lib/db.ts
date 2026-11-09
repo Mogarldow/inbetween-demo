@@ -16,7 +16,7 @@ function pgPool(): Db {
 }
 
 function pglitePool(): Db {
-  const dataDir = process.env.PGLITE_DIR || join(process.cwd(), ".data", "pglite");
+  const dataDir = process.env.PGLITE_DIR || join(/*turbopackIgnore: true*/ process.cwd(), ".data", "pglite");
   let _ready: ReturnType<typeof open> | null = null;
   const open = async () => {
     mkdirSync(dataDir, { recursive: true });
@@ -24,7 +24,7 @@ function pglitePool(): Db {
     const db = await PGlite.create(dataDir);
     const t = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_name = 'clients'");
     if (!t.rows[0].n) {
-      for (const f of ["db/schema.sql", "db/seed.sql", "db/extras.sql"]) await db.exec(readFileSync(join(process.cwd(), f), "utf8"));
+      for (const f of ["db/schema.sql", "db/seed.sql", "db/extras.sql"]) await db.exec(readFileSync(join(/*turbopackIgnore: true*/ process.cwd(), f), "utf8"));
       console.log("Vestavěná databáze založena v", dataDir);
     }
     return db;
