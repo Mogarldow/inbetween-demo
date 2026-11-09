@@ -47,7 +47,7 @@ export default function PsychologPage() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <h1><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Most</Link></h1>
+          <h1><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Inbetween</Link></h1>
           <span className="tag">Přehled psychologa</span>
         </div>
         <Link className="note" href="/klient">Přejít na aplikaci klienta</Link>

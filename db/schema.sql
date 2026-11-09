@@ -1,4 +1,4 @@
--- Most demo: datové schéma (PostgreSQL)
+-- Inbetween demo: datové schéma (PostgreSQL)
 DROP TABLE IF EXISTS alerts, events, messages, tasks, checkins, clients CASCADE;
 
 CREATE TABLE clients (

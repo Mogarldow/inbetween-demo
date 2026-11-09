@@ -1,6 +1,8 @@
-# Most: demo
+# Inbetween: demo
 
 AI parťák, který podrží klienta mezi terapeutickými sezeními přesně podle plánu jeho psychologa. Psycholog vidí, co se děje, a dostane upozornění, když je klient v ohrožení. **AI navrhuje, psycholog rozhoduje.**
+
+*Inbetween* znamená „mezi“: produkt žije v čase mezi dvěma sezeními u psychologa. Pracovní český název byl Most.
 
 Demo pro 24H Challenge × Mozkovna. Všechna data jsou fiktivní.
 

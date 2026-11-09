@@ -5,8 +5,8 @@ export default function Home() {
     <main className="landing">
       <div>
         <span className="label">24H Challenge × Mozkovna · demo</span>
-        <h1>Most</h1>
-        <p className="tag">Terapie nekončí odchodem z ordinace.</p>
+        <h1>Inbetween</h1>
+        <p className="tag">Your therapy between sessions. Terapie nekončí odchodem z ordinace.</p>
       </div>
       <p>
         AI parťák podrží klienta mezi sezeními přesně podle plánu jeho psychologa. Psycholog vidí, co se děje, a dostane

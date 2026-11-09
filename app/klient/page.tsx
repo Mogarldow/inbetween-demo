@@ -42,7 +42,7 @@ export default function KlientPage() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <h1><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Most</Link></h1>
+          <h1><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Inbetween</Link></h1>
           <span className="tag">Aplikace klienta</span>
         </div>
         <Link className="note" href="/psycholog">Přejít na pohled psychologa</Link>

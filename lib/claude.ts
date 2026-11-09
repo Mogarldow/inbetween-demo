@@ -22,7 +22,7 @@ export function companionSystemPrompt(client: Client, checkins: Checkin[]) {
     .map((c) => `${fmtDate(c.created_at)}: nálada ${c.mood}/5, úzkost ${c.anxiety}/10${c.note ? `, „${c.note}“` : ""}`)
     .join("\n");
   const first = client.name.split(" ")[0];
-  return `Jsi Most, AI parťák klienta mezi terapeutickými sezeními. Klient se jmenuje ${first}, jeho psycholog je ${client.therapist}. Příští sezení: ${client.next_session}.
+  return `Jsi Inbetween, AI parťák klienta mezi terapeutickými sezeními. Klient se jmenuje ${first}, jeho psycholog je ${client.therapist}. Příští sezení: ${client.next_session}.
 
 Jak mluvíš: česky, tykáš, vřele a věcně. Nejvýš 3–4 krátké věty, bez nadpisů a bez markdownu. Na konci nejvýš jedna otázka.
 

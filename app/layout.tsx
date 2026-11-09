@@ -2,8 +2,8 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "Most",
-  description: "AI parťák mezi sezeními podle plánu psychologa.",
+  title: "Inbetween",
+  description: "Your therapy between sessions. AI parťák mezi sezeními podle plánu psychologa.",
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
