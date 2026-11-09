@@ -4,15 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Client, Checkin, Message, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
 import type { QKind } from "@/lib/questionnaires";
-import { MicButton, OutreachCard, WeekCard, PrepCard, PrivacyCard, QuestionnaireSheet, QuestionnairesCard, RemindersCard, Toast } from "./extras";
+import { FindSheet, SoloCard, MicButton, OutreachCard, WeekCard, PrepCard, PrivacyCard, QuestionnaireSheet, QuestionnairesCard, RemindersCard, Toast } from "./extras";
 import { getTechnique, splitSources, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
-const CLIENT_ID = "petra"; // demo: jeden přihlášený klient
+let CLIENT_ID = "petra"; // demo: přihlášený klient (?id=nikola = uživatelka bez psychologa)
 const CRISIS_TAG = "[KRIZE]";
 const MOODS: [number, string][] = [[1, "Hrozně"], [2, "Špatně"], [3, "Jde to"], [4, "Dobře"], [5, "Skvěle"]];
 const SUGGESTIONS = ["Zítra mám poradu a jsem z toho na nervy", "Nemůžu usnout", "Mám si zvýšit dávku léků?"];
 
-type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[]; scores: Score[]; outreach: Outreach[]; thoughts: ThoughtRecord[] };
+type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[]; scores: Score[]; outreach: Outreach[]; thoughts: ThoughtRecord[]; requested?: boolean };
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -27,6 +27,7 @@ export default function KlientPage() {
   const closeToast = useCallback(() => setToast(null), []);
 
   const load = useCallback(async () => {
+    CLIENT_ID = new URLSearchParams(window.location.search).get("id") || "petra";
     const res = await fetch(`/api/state?client=${CLIENT_ID}`, { cache: "no-store" });
     if (!res.ok) throw new Error("Nepodařilo se načíst data. Běží databáze a je nastavená DATABASE_URL?");
     const data = await res.json();
@@ -50,6 +51,10 @@ export default function KlientPage() {
           <h1><Link href="/" style={{ color: "inherit", textDecoration: "none" }}>Inbetween</Link></h1>
           <span className="tag">Aplikace klienta</span>
         </div>
+        <div className="seg" role="group" aria-label="Režim">
+          <a href="/klient" aria-pressed={!state.client.solo} className="segl">S psychologem</a>
+          <a href="/klient?id=nikola" aria-pressed={state.client.solo} className="segl">Zatím bez psychologa</a>
+        </div>
         <Link className="note" href="/psycholog">Přejít na pohled psychologa</Link>
       </header>
       <main className="stage-single">
@@ -68,12 +73,12 @@ export default function KlientPage() {
               <div className="scr-body">
                 <div className="card">
                   <h3>Můj plán</h3>
-                  <p className="note" style={{ margin: 0 }}>Plán nastavil tvůj psycholog. Parťák se ho drží a nic v něm nemění.</p>
+                  <p className="note" style={{ margin: 0 }}>{state.client.solo ? "Obecný program „Zvládání stresu“ podle doporučení WHO a NHS. Až budeš mít psychologa, nastaví ti plán na míru." : "Plán nastavil tvůj psycholog. Parťák se ho drží a nic v něm nemění."}</p>
                   <div style={{ whiteSpace: "pre-wrap" }}>{state.client.plan}</div>
                 </div>
                 <div className="card">
                   <h3>Moje techniky</h3>
-                  <p className="note" style={{ margin: 0 }}>Vybral je tvůj psycholog z knihovny ověřených postupů.</p>
+                  <p className="note" style={{ margin: 0 }}>{state.client.solo ? "Základní sada z knihovny ověřených postupů, kterou spravují psychologové." : "Vybral je tvůj psycholog z knihovny ověřených postupů."}</p>
                   {(state.client.allowed_techniques ?? []).map(getTechnique).filter((t) => !!t).map((t) => (
                     <div className="task" key={t!.id}>
                       <div>
@@ -84,7 +89,7 @@ export default function KlientPage() {
                     </div>
                   ))}
                 </div>
-                <PrepCard client={state.client} />
+                {!state.client.solo && <PrepCard client={state.client} />}
                 <RemindersCard client={state.client} onToast={setToast} />
                 <PrivacyCard client={state.client} therapist={therapistFirst} />
                 <Hotlines />
@@ -123,7 +128,7 @@ function Home({ state, therapistFirst, reload, openChat }: {
   const [anx, setAnx] = useState(5);
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState<null | number>(null);
-  const [sheet, setSheet] = useState<null | "breath" | "sos" | "thought">(null);
+  const [sheet, setSheet] = useState<null | "breath" | "sos" | "thought" | "find">(null);
   const [qKind, setQKind] = useState<QKind | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -146,13 +151,13 @@ function Home({ state, therapistFirst, reload, openChat }: {
       <div className="scr-body">
         <OutreachCard outreach={state.outreach ?? []} therapist={therapistFirst} />
 
-        <div className="card next">
+        {state.client.solo ? <SoloCard requested={!!state.requested} onFind={() => setSheet("find")} /> : <div className="card next">
           <span className="label">Příští sezení</span>
           <b>{state.client.next_session} · {state.client.therapist}</b>
           <span className="note">Do té doby jsem tu pro tebe podle plánu, který jste spolu nastavili.</span>
-        </div>
+        </div>}
 
-        <WeekCard clientId={CLIENT_ID} checkins={state.checkins} tasks={state.tasks} thoughts={state.thoughts ?? []} />
+        <WeekCard clientId={CLIENT_ID} checkins={state.checkins} tasks={state.tasks} thoughts={state.thoughts ?? []} solo={!!state.client.solo} />
 
         <div className="card">
           {saved === null ? (
@@ -176,7 +181,7 @@ function Home({ state, therapistFirst, reload, openChat }: {
               <p className="note" style={{ margin: 0 }}>
                 {saved >= 6
                   ? "Úzkost je dnes vyšší. Chceš zkusit dýchání 4-4-6 nebo si o tom napsat s parťákem?"
-                  : `${therapistFirst} to uvidí před příštím sezením.`}
+                  : state.client.solo ? "Uloženo jen pro tebe. Z check-inů ti každý týden ukážu, jak se ti daří." : `${therapistFirst} to uvidí před příštím sezením.`}
               </p>
               <button className="btn ghost" onClick={openChat}>Napsat parťákovi</button>
             </>
@@ -184,7 +189,7 @@ function Home({ state, therapistFirst, reload, openChat }: {
         </div>
 
         <div className="card">
-          <div className="row"><h3>Úkoly z terapie</h3><span className="label">Tento týden</span></div>
+          <div className="row"><h3>{state.client.solo ? "Tvůj program" : "Úkoly z terapie"}</h3><span className="label">Tento týden</span></div>
           <div>
             {state.tasks.map((t) => (
               <label className="task" key={t.id}>
@@ -211,11 +216,12 @@ function Home({ state, therapistFirst, reload, openChat }: {
 
       {sheet === "breath" && <Breathing onClose={() => setSheet(null)} />}
       {sheet === "thought" && <ThoughtForm onClose={() => setSheet(null)} onSaved={reload} />}
-      {qKind && <QuestionnaireSheet key={qKind} kind={qKind} clientId={CLIENT_ID} onClose={() => setQKind(null)} onSaved={reload} />}
+      {qKind && <QuestionnaireSheet key={qKind} kind={qKind} clientId={CLIENT_ID} solo={state.client.solo} onFind={() => { setQKind(null); setSheet("find"); }} onClose={() => setQKind(null)} onSaved={reload} />}
+      {sheet === "find" && <FindSheet clientId={CLIENT_ID} scores={state.scores ?? []} onClose={() => { setSheet(null); reload(); }} />}
       {sheet === "sos" && (
         <div className="sheet">
           <h2>Nejsi v tom sám/sama</h2>
-          <p style={{ margin: 0 }}>Pokud jsi v ohrožení, zavolej hned. Tvůj psycholog dostal upozornění a ozve se ti.</p>
+          <p style={{ margin: 0 }}>Pokud jsi v ohrožení, zavolej hned.{state.client.solo ? " Na lince je někdo nonstop a zdarma." : " Tvůj psycholog dostal upozornění a ozve se ti."}</p>
           <div className="hotline"><span className="label">Linka první psychické pomoci, nonstop</span><div className="big">116 123</div></div>
           <div className="hotline"><span className="label">Tísňová linka</span><div className="big">112</div></div>
           <button className="btn ghost" onClick={() => setSheet(null)}>Zpět</button>
@@ -276,7 +282,7 @@ function ThoughtForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
       )}
       {step === 2 && (
         <>
-          <p style={{ margin: 0 }}>Uloženo. {f.balanced && f.after < f.before ? `Emoce klesla z ${f.before} % na ${f.after} %. ` : ""}Záznam uvidí tvůj psycholog a probere ho s tebou na sezení.</p>
+          <p style={{ margin: 0 }}>Uloženo. {f.balanced && f.after < f.before ? `Emoce klesla z ${f.before} % na ${f.after} %. ` : ""}Záznam máš uložený. Pokud máš psychologa, uvidí ho a probere ho s tebou na sezení.</p>
           <button className="btn" onClick={onClose}>Hotovo</button>
         </>
       )}

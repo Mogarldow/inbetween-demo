@@ -42,7 +42,7 @@ export function QuestionnairesCard({ scores, onOpen }: { scores: Score[]; onOpen
   return (
     <div className="card">
       <div className="row"><h3>Jak se ti daří</h3><span className="label">Jednou za 2 týdny</span></div>
-      <p className="note" style={{ margin: 0 }}>Krátké dotazníky, které používají psychologové. Tvůj psycholog z nich uvidí, jestli se ti ulevuje.</p>
+      <p className="note" style={{ margin: 0 }}>Krátké dotazníky, které používají psychologové. Ukážou, jestli se ti ulevuje.</p>
       {(["gad7", "phq9"] as QKind[]).map((k) => {
         const l = lastOf(k);
         return (
@@ -59,7 +59,7 @@ export function QuestionnairesCard({ scores, onOpen }: { scores: Score[]; onOpen
   );
 }
 
-export function QuestionnaireSheet({ kind, clientId, onClose, onSaved }: { kind: QKind; clientId: string; onClose: () => void; onSaved: () => void }) {
+export function QuestionnaireSheet({ kind, clientId, solo, onFind, onClose, onSaved }: { kind: QKind; clientId: string; solo?: boolean; onFind?: () => void; onClose: () => void; onSaved: () => void }) {
   const def = QUESTIONNAIRES[kind];
   const [ans, setAns] = useState<(number | null)[]>(() => def.items.map(() => null));
   const [res, setRes] = useState<null | { score: number; max: number; band: string; prev: number | null; risk: boolean }>(null);
@@ -80,16 +80,17 @@ export function QuestionnaireSheet({ kind, clientId, onClose, onSaved }: { kind:
       <div className="sheet form">
         <h2>Díky, uloženo</h2>
         <p style={{ margin: 0 }}>
-          Máš {res.score} bodů z {res.max}, to odpovídá pásmu „{res.band}“.{res.prev !== null ? ` Minule to bylo ${res.prev}.` : ""} Psycholog to s tebou probere. Není to diagnóza, jen orientační ukazatel.
+          Máš {res.score} bodů z {res.max}, to odpovídá pásmu „{res.band}“.{res.prev !== null ? ` Minule to bylo ${res.prev}.` : ""} {solo ? (res.score >= 10 ? "Tohle skóre je vyšší. Doporučuji probrat to s odborníkem, můžu ti najít psychologa." : "Není to diagnóza, jen orientační ukazatel.") : "Psycholog to s tebou probere. Není to diagnóza, jen orientační ukazatel."}
         </p>
         {res.risk && (
           <>
-            <p style={{ margin: 0 }}>Napsal/a jsi, že tě napadají myšlenky na smrt nebo ublížení sobě. Nejsi v tom sám/sama. Tvůj psycholog dostal upozornění.</p>
+            <p style={{ margin: 0 }}>Napsal/a jsi, že tě napadají myšlenky na smrt nebo ublížení sobě. Nejsi v tom sám/sama. {solo ? "Zavolej prosím hned, na lince je někdo nonstop." : "Tvůj psycholog dostal upozornění."}</p>
             <div className="hotline"><span className="label">Linka první psychické pomoci, nonstop</span><div className="big">116 123</div></div>
             <div className="hotline"><span className="label">Tísňová linka</span><div className="big">112</div></div>
           </>
         )}
-        <button className="btn" onClick={onClose}>Hotovo</button>
+        {solo && res.score >= 10 && onFind && <button className="btn" onClick={onFind}>Najít psychologa</button>}
+        <button className={solo && res.score >= 10 ? "btn ghost" : "btn"} onClick={onClose}>Hotovo</button>
       </div>
     );
   }
@@ -216,12 +217,12 @@ export function PrivacyCard({ client, therapist }: { client: Client; therapist: 
   return (
     <div className="card">
       <div className="row"><h3>Soukromí a data</h3><span className="label">Rozhoduješ ty</span></div>
-      <div>
+      {client.solo ? <p style={{ margin: 0, fontSize: 14 }}>Všechno vidíš jen ty. Když si najdeš psychologa, sám/sama rozhodneš, co mu nasdílíš.</p> : <div>
         <div className="opt"><span>Check-iny a krizová upozornění<br /><small className="note">Sdílí se vždy, jsou součástí terapie.</small></span><input type="checkbox" checked disabled /></div>
         <div className="opt"><label htmlFor="shT">{therapist} vidí deník myšlenek</label><input type="checkbox" id="shT" checked={share.share_thoughts} onChange={(e) => toggle("share_thoughts", e.target.checked)} /></div>
         <div className="opt"><label htmlFor="shS">{therapist} vidí výsledky dotazníků</label><input type="checkbox" id="shS" checked={share.share_scores} onChange={(e) => toggle("share_scores", e.target.checked)} /></div>
         <div className="opt"><label htmlFor="shC">{therapist} vidí celé znění chatu<br /><small className="note">Vypnuto: vidí jen shrnutí od AI.</small></label><input type="checkbox" id="shC" checked={share.share_chat} onChange={(e) => toggle("share_chat", e.target.checked)} /></div>
-      </div>
+      </div>}
       <p className="note" style={{ margin: 0 }}>Data jsou uložená v EU (Frankfurt) a šifrovaná. Nikomu je neprodáváme a AI se na nich neučí.</p>
       <div className="sos">
         <a className="btn ghost" style={{ textAlign: "center", textDecoration: "none" }} href={`/api/export?client=${client.id}`} download>Stáhnout moje data</a>
@@ -261,8 +262,8 @@ export function MicButton({ value, onText, onStatus }: { value: string; onText: 
 
 
 /* ---------- týdenní přehled ---------- */
-export function WeekCard({ clientId, checkins, tasks, thoughts }: {
-  clientId: string; checkins: { anxiety: number }[]; tasks: { week_done: number }[]; thoughts: { intensity_before: number; intensity_after: number | null }[];
+export function WeekCard({ clientId, checkins, tasks, thoughts, solo }: {
+  solo?: boolean; clientId: string; checkins: { anxiety: number }[]; tasks: { week_done: number }[]; thoughts: { intensity_before: number; intensity_after: number | null }[];
 }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -277,7 +278,7 @@ export function WeekCard({ clientId, checkins, tasks, thoughts }: {
   }
   return (
     <div className="card">
-      <div className="row"><h3>Tvůj týden</h3><span className="label">Od minulého sezení</span></div>
+      <div className="row"><h3>Tvůj týden</h3><span className="label">{solo ? "Posledních 7 dní" : "Od minulého sezení"}</span></div>
       <div className="week">
         <div><b>{checkins.length}×</b><small>check-in</small></div>
         <div><b>{practice}×</b><small>procvičení technik</small></div>
@@ -287,6 +288,71 @@ export function WeekCard({ clientId, checkins, tasks, thoughts }: {
         {text || (done.length ? `Do deníku jsi zapsal/a ${thoughts.length}× a emoce pak v průměru klesla o ${drop} %. To je přesně ta práce, která pomáhá.` : "Každý check-in a každé cvičení se počítá.")}
       </p>
       <button className="btn ghost" disabled={busy} onClick={summarize}>{busy ? "Píšu…" : text ? "Shrň znovu" : "Shrň mi týden"}</button>
+    </div>
+  );
+}
+
+/* ---------- režim bez psychologa ---------- */
+export function SoloCard({ requested, onFind }: { requested: boolean; onFind: () => void }) {
+  return (
+    <div className="card next">
+      <span className="label">Zatím bez psychologa</span>
+      <b>{requested ? "Jsi v čekárně" : "Jsem tu pro tebe i bez terapie"}</b>
+      <span className="note">
+        {requested
+          ? "Psycholog se ti ozve, odhad 2–4 týdny. Mezitím pokračuj v programu, parťák je tu dál."
+          : "Pomůžu ti zvládat běžný stres a úzkost technikami podle doporučení WHO a NHS. Terapii ale nenahradím. Když budeš chtít, najdu ti psychologa."}
+      </span>
+      {!requested && <button className="btn" onClick={onFind}>Najít psychologa</button>}
+    </div>
+  );
+}
+
+const TOPICS = ["Úzkost", "Stres v práci", "Nálada", "Spánek", "Vztahy", "Vyhoření"];
+const FORMS = ["Online", "Osobně", "Je mi to jedno"];
+
+export function FindSheet({ clientId, scores, onClose }: { clientId: string; scores: Score[]; onClose: () => void }) {
+  const [topics, setTopics] = useState<string[]>(["Úzkost"]);
+  const [form, setForm] = useState("Online");
+  const [share, setShare] = useState(true);
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const last = (k: QKind) => scores.filter((s) => s.kind === k).at(-1)?.score;
+  async function send() {
+    setBusy(true);
+    const r = await post("/api/find", { clientId, topics, form, share });
+    setBusy(false);
+    if (r.ok) setDone(true);
+  }
+  if (done) {
+    return (
+      <div className="sheet form">
+        <h2>Jsi v čekárně</h2>
+        <p style={{ margin: 0 }}>Psycholog uvidí, s čím chceš pomoct{share ? ", a tvoje výsledky dotazníků" : ""}. Ozve se ti, odhad 2–4 týdny. Mezitím je tu parťák a program. Když bude nejhůř, volej 116 123.</p>
+        <button className="btn" onClick={onClose}>Hotovo</button>
+      </div>
+    );
+  }
+  return (
+    <div className="sheet form">
+      <div className="row"><h2>Najít psychologa</h2><span className="label">Asi minuta</span></div>
+      <b style={{ fontSize: 13 }}>S čím chceš pomoct</b>
+      <div className="chips-pick">
+        {TOPICS.map((t) => (
+          <button key={t} type="button" aria-pressed={topics.includes(t)} onClick={() => setTopics((x) => (x.includes(t) ? x.filter((y) => y !== t) : [...x, t]))}>{t}</button>
+        ))}
+      </div>
+      <b style={{ fontSize: 13 }}>Forma</b>
+      <div className="chips-pick">
+        {FORMS.map((f) => <button key={f} type="button" aria-pressed={form === f} onClick={() => setForm(f)}>{f}</button>)}
+      </div>
+      <div className="opt" style={{ borderTop: 0 }}>
+        <label htmlFor="fShare">Poslat psychologovi výsledky dotazníků{last("gad7") !== undefined ? ` (GAD-7 ${last("gad7")}, PHQ-9 ${last("phq9") ?? "–"})` : ""}</label>
+        <input type="checkbox" id="fShare" checked={share} onChange={(e) => setShare(e.target.checked)} />
+      </div>
+      <p className="note" style={{ margin: 0 }}>Zařadíme tě do čekárny u ověřených psychologů v Inbetween. Mezitím ti zůstane program i parťák a vždy máš k dispozici linku 116 123.</p>
+      <button className="btn" disabled={busy || !topics.length} onClick={send}>Zařadit do čekárny</button>
+      <button className="btn ghost" onClick={onClose}>Zavřít</button>
     </div>
   );
 }

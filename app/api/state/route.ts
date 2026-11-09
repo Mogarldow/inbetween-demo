@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       `SELECT c.*,
               (SELECT count(*)::int FROM alerts a WHERE a.client_id = c.id AND a.resolved = FALSE) AS open_alerts,
               (SELECT max(created_at) FROM checkins k WHERE k.client_id = c.id) AS last_checkin
-         FROM clients c ORDER BY c.waiting, c.name`,
+         FROM clients c WHERE NOT c.solo ORDER BY c.waiting, c.name`,
     );
     return NextResponse.json({ clients });
   }

@@ -258,3 +258,9 @@ textarea:focus,input[type=text]:focus{outline:none;border:2px solid var(--accent
 .bar i.warn{background:#F9AB00}
 .bar i.risk{background:#D93025}
 input[type=checkbox],input[type=range]{accent-color:var(--accent)}
+.chips-pick{display:flex;flex-wrap:wrap;gap:6px}
+.chips-pick button{border:1px solid #747775;background:var(--surface);border-radius:8px;padding:6px 12px;font-size:13px}
+.chips-pick button[aria-pressed="true"]{background:#D3E3FD;border-color:#D3E3FD;color:#041E49}
+.seg a.segl{padding:8px 16px;color:var(--ink);font-weight:500;text-decoration:none;border-left:1px solid #747775;font-size:14px}
+.seg a.segl:first-child{border-left:0}
+.seg a.segl[aria-pressed="true"]{background:#D3E3FD;color:#041E49}

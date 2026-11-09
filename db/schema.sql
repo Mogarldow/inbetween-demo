@@ -15,7 +15,8 @@ CREATE TABLE clients (
   share_thoughts BOOLEAN NOT NULL DEFAULT TRUE,  -- souhlasy klienta: co vidí psycholog
   share_scores   BOOLEAN NOT NULL DEFAULT TRUE,
   share_chat     BOOLEAN NOT NULL DEFAULT TRUE,
-  reminders      JSONB NOT NULL DEFAULT '[]'
+  reminders      JSONB NOT NULL DEFAULT '[]',
+  solo           BOOLEAN NOT NULL DEFAULT FALSE  -- používá Inbetween zatím bez psychologa
 );
 
 CREATE TABLE checkins (
@@ -97,7 +98,8 @@ CREATE TABLE waitlist (
   phq9          INT  NOT NULL,
   item9         INT  NOT NULL DEFAULT 0,
   modules_done  INT  NOT NULL DEFAULT 0,
-  note          TEXT
+  note          TEXT,
+  client_id     TEXT REFERENCES clients(id) ON DELETE CASCADE  -- uživatel z aplikace, který požádal o psychologa
 );
 
 CREATE INDEX ON checkins (client_id, created_at);

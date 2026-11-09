@@ -27,6 +27,7 @@ export type Client = {
   id: string; name: string; salutation: string; therapist: string; focus: string; next_session: string; plan: string; waiting: boolean; allowed_techniques: string[];
   prep: string | null; share_thoughts: boolean; share_scores: boolean; share_chat: boolean;
   reminders: { title: string; when: string; on: boolean }[];
+  solo: boolean;
 };
 export type Checkin = { id: number; mood: number; anxiety: number; note: string | null; created_at: string };
 export type Task = { id: number; title: string; hint: string; week_done: number; week_goal: number; done_today: boolean };
@@ -38,7 +39,7 @@ export type ThoughtRecord = {
 };
 export type Score = { id: number; kind: "gad7" | "phq9"; score: number; item9: number | null; created_at: string };
 export type Outreach = { id: number; text: string; created_at: string };
-export type WaitPerson = { id: number; name: string; weeks: number; gad7: number; phq9: number; item9: number; modules_done: number; note: string | null };
+export type WaitPerson = { id: number; name: string; weeks: number; gad7: number; phq9: number; item9: number; modules_done: number; note: string | null; client_id: string | null };
 export type Alert = { id: number; kind: string; text: string; resolved: boolean; created_at: string };
 
 export async function getClient(id: string) {
@@ -48,7 +49,7 @@ export async function getClient(id: string) {
 
 /** Vše o klientovi. Pro psychologa (forTherapist) respektuje souhlasy klienta se sdílením. */
 export async function getClientState(id: string, forTherapist = false) {
-  const [client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach] = await Promise.all([
+  const [client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach, req] = await Promise.all([
     getClient(id),
     q<Checkin>("SELECT * FROM (SELECT * FROM checkins WHERE client_id = $1 ORDER BY created_at DESC LIMIT 7) t ORDER BY created_at", [id]),
     q<Task>("SELECT * FROM tasks WHERE client_id = $1 ORDER BY id", [id]),
@@ -58,7 +59,9 @@ export async function getClientState(id: string, forTherapist = false) {
     q<ThoughtRecord>("SELECT * FROM thought_records WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10", [id]),
     q<Score>("SELECT * FROM questionnaires WHERE client_id = $1 ORDER BY created_at", [id]),
     q<Outreach>("SELECT * FROM outreach WHERE client_id = $1 ORDER BY created_at", [id]),
+    q("SELECT 1 FROM waitlist WHERE client_id = $1", [id]),
   ]);
+  const requested = req.length > 0; // uživatel bez psychologa už požádal o psychologa
   if (forTherapist && client) {
     return {
       client, checkins, tasks, events, alerts, outreach,
@@ -67,5 +70,5 @@ export async function getClientState(id: string, forTherapist = false) {
       scores: client.share_scores ? scores : [],
     };
   }
-  return { client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach };
+  return { client, checkins, tasks, messages, events, alerts, thoughts, scores, outreach, requested };
 }

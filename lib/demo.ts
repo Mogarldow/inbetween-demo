@@ -9,17 +9,19 @@ export const DEMO_MODE = !process.env.ANTHROPIC_API_KEY;
 export function demoChatReply(text: string, client: Client, techniques: Technique[]) {
   const therapist = client.therapist.split(" ").at(-2) ?? "tvůj psycholog";
   if (isRisky(text)) {
-    return `${CRISIS_TAG} Moc děkuju, že jsi mi to napsal/a. To, co prožíváš, je vážné a nemusíš na to být sám/sama. Prosím, zavolej hned Linku první psychické pomoci 116 123, je tam někdo nonstop. Pokud jsi v bezprostředním ohrožení, volej 112. ${therapist} dostal/a upozornění.\n${SOURCE_TAG} ${CRISIS_TECHNIQUE_ID}]`;
+    return `${CRISIS_TAG} Moc děkuju, že jsi mi to napsal/a. To, co prožíváš, je vážné a nemusíš na to být sám/sama. Prosím, zavolej hned Linku první psychické pomoci 116 123, je tam někdo nonstop. Pokud jsi v bezprostředním ohrožení, volej 112. ${client.solo ? "Nezůstávej teď sám/sama." : `${therapist} dostal/a upozornění.`}\n${SOURCE_TAG} ${CRISIS_TECHNIQUE_ID}]`;
   }
   if (/lék|prášk|dávk|antidepres/i.test(text)) {
-    return "S léky ti radit nemůžu, to patří tvé lékařce nebo psychologovi. Napiš si otázku, ať ji na sezení nezapomeneš. Chceš mezitím zkusit něco, co ti teď pomůže se zklidnit?";
+    return client.solo
+      ? "S léky ti radit nemůžu, to patří lékaři. Když tě to trápí dlouho, můžu ti najít psychologa, stačí kliknout na „Najít psychologa“. Chceš mezitím zkusit něco na zklidnění?"
+      : "S léky ti radit nemůžu, to patří tvé lékařce nebo psychologovi. Napiš si otázku, ať ji na sezení nezapomeneš. Chceš mezitím zkusit něco, co ti teď pomůže se zklidnit?";
   }
   if (/díky|děkuju|dík|pomohlo|lepší/i.test(text)) {
     return "To jsem rád/a. Zapiš si, co ti pomohlo, ať to máš po ruce i příště. Je ještě něco, co tě dnes trápí?";
   }
   const t = techniques[0];
   if (!t) return "Díky, že to sdílíš. Zkus pojmenovat, co přesně teď cítíš a jak silné to je na škále 0–10. Co by ti teď nejvíc pomohlo?";
-  return `Díky, že to sdílíš, to zní náročně. Z tvého plánu by se teď hodilo: ${t.title}. ${t.steps} Zkusíš to a pak mi napíšeš, jak silný je ten pocit na škále 0–10?\n${SOURCE_TAG} ${t.id}]`;
+  return `Díky, že to sdílíš, to zní náročně. ${client.solo ? "Teď by se mohlo hodit" : "Z tvého plánu by se teď hodilo"}: ${t.title}. ${t.steps} Zkusíš to a pak mi napíšeš, jak silný je ten pocit na škále 0–10?\n${SOURCE_TAG} ${t.id}]`;
 }
 
 export function demoSummary(

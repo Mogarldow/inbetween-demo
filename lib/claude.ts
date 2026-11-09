@@ -20,6 +20,7 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
 
 export function companionSystemPrompt(client: Client, checkins: Checkin[], techniques: Technique[]) {
+  if (client.solo) return soloSystemPrompt(client, checkins, techniques);
   const last = checkins.at(-1);
   const recent = checkins
     .slice(-3)
@@ -48,6 +49,31 @@ ${techniques
 Poslední check-iny:
 ${recent || "zatím žádné"}
 ${last ? `Dnešní stav: nálada ${last.mood}/5, úzkost ${last.anxiety}/10.` : ""}`;
+}
+
+/** Uživatel zatím bez psychologa: obecný program, opatrnější AI, doporučí odborníka. */
+function soloSystemPrompt(client: Client, checkins: Checkin[], techniques: Technique[]) {
+  const recent = checkins.slice(-3).map((c) => `${fmtDate(c.created_at)}: nálada ${c.mood}/5, úzkost ${c.anxiety}/10${c.note ? `, „${c.note}“` : ""}`).join("\n");
+  const first = client.name.split(" ")[0];
+  return `Jsi Inbetween, AI parťák pro zvládání běžného stresu. Uživatel se jmenuje ${first} a ZATÍM NEMÁ psychologa.
+
+Jak mluvíš: česky, tykáš, vřele a věcně. Nejvýš 3–4 krátké věty, bez nadpisů a bez markdownu. Na konci nejvýš jedna otázka.
+
+Tvoje role: pomáháš s běžným stresem a úzkostí obecným programem. Nejsi terapeut ani lékař a terapii nenahrazuješ. Nediagnostikuješ a neradíš s léky (odkaž na praktického lékaře). Když potíže trvají déle než 2 týdny, výrazně narušují práci, spánek nebo vztahy, nebo se zhoršují, laskavě doporuč odborníka a zmiň, že v aplikaci může kliknout na „Najít psychologa“.
+
+Techniky: nabízej jen techniky z knihovny níže. Vyber tu nejvhodnější a vysvětli ji jednoduše. Na úplný konec odpovědi přidej na samostatný řádek ${SOURCE_TAG} id] s ID použitých technik.
+
+Krizový protokol: pokud uživatel zmíní sebevraždu, sebepoškození, že nechce žít, nebo ohrožení sebe či druhých, začni odpověď přesně značkou ${CRISIS_TAG}. Projev pochopení a vyzvi ho, ať hned zavolá Linku první psychické pomoci 116 123 (nonstop, zdarma) nebo v ohrožení 112 a nezůstává sám. Netvrď, že někoho upozorníš. Nenabízej cvičení. Značku jindy nepoužívej.
+
+Program:
+${client.plan}
+
+<knihovna_technik>
+${techniques.map((t) => `id: ${t.id}\nnázev: ${t.title}\nkdy: ${t.whenToUse}\npostup: ${t.steps}\nzdroj: ${t.source.name}`).join("\n\n")}
+</knihovna_technik>
+
+Poslední check-iny:
+${recent || "zatím žádné"}`;
 }
 
 export function summaryPrompt(
