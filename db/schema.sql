@@ -1,5 +1,5 @@
 -- Inbetween demo: datové schéma (PostgreSQL)
-DROP TABLE IF EXISTS alerts, events, messages, tasks, checkins, clients CASCADE;
+DROP TABLE IF EXISTS thought_records, alerts, events, messages, tasks, checkins, clients CASCADE;
 
 CREATE TABLE clients (
   id            TEXT PRIMARY KEY,
@@ -9,7 +9,8 @@ CREATE TABLE clients (
   focus         TEXT NOT NULL,
   next_session  TEXT NOT NULL,
   plan          TEXT NOT NULL,
-  waiting       BOOLEAN NOT NULL DEFAULT FALSE
+  waiting       BOOLEAN NOT NULL DEFAULT FALSE,
+  allowed_techniques TEXT[] NOT NULL DEFAULT '{}'  -- techniky z knihovny (lib/techniques.ts), které smí parťák nabízet
 );
 
 CREATE TABLE checkins (
@@ -55,7 +56,20 @@ CREATE TABLE alerts (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE thought_records (
+  id               SERIAL PRIMARY KEY,
+  client_id        TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  situation        TEXT NOT NULL,
+  thought          TEXT NOT NULL,
+  emotion          TEXT NOT NULL,
+  intensity_before INT  NOT NULL CHECK (intensity_before BETWEEN 0 AND 100),
+  balanced         TEXT,
+  intensity_after  INT  CHECK (intensity_after BETWEEN 0 AND 100),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX ON checkins (client_id, created_at);
 CREATE INDEX ON messages (client_id, created_at);
 CREATE INDEX ON events (client_id, created_at);
 CREATE INDEX ON alerts (client_id, created_at);
+CREATE INDEX ON thought_records (client_id, created_at);

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Checkin, Client, Event, Message, Task, Alert } from "./db";
+import type { Checkin, Client, Event, Message, Task, Alert, ThoughtRecord } from "./db";
 import { CRISIS_TAG } from "./risk";
+import { SOURCE_TAG, type Technique } from "./techniques";
 import { DEMO_MODE } from "./demo";
 
 // Klient se vytváří až při prvním volání, aby build i ukázkový režim běžely bez klíče.
@@ -18,7 +19,7 @@ export const FALLBACK = {
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
 
-export function companionSystemPrompt(client: Client, checkins: Checkin[]) {
+export function companionSystemPrompt(client: Client, checkins: Checkin[], techniques: Technique[]) {
   const last = checkins.at(-1);
   const recent = checkins
     .slice(-3)
@@ -29,12 +30,20 @@ export function companionSystemPrompt(client: Client, checkins: Checkin[]) {
 
 Jak mluvíš: česky, tykáš, vřele a věcně. Nejvýš 3–4 krátké věty, bez nadpisů a bez markdownu. Na konci nejvýš jedna otázka.
 
-Tvoje role: pomáháš klientovi držet se plánu, který nastavil psycholog. Nejsi terapeut ani lékař. Nediagnostikuješ, neradíš s léky ani dávkováním a plán neměníš. Když se klient ptá na léky, diagnózu nebo změnu terapie, laskavě ho odkaž na psychologa nebo lékaře a navrhni, ať si otázku zapíše na sezení. Nabízej hlavně techniky z plánu.
+Tvoje role: pomáháš klientovi držet se plánu, který nastavil psycholog. Nejsi terapeut ani lékař. Nediagnostikuješ, neradíš s léky ani dávkováním a plán neměníš. Když se klient ptá na léky, diagnózu nebo změnu terapie, laskavě ho odkaž na psychologa nebo lékaře a navrhni, ať si otázku zapíše na sezení.
+
+Techniky: nabízej jen techniky z knihovny níže, kterou pro tohoto klienta schválil psycholog. Vyber tu, která se k situaci hodí nejvíc (stačí jedna), a vysvětli ji jednoduše vlastními slovy. Nevymýšlej jiná cvičení. Na úplný konec odpovědi přidej na samostatný řádek ${SOURCE_TAG} id] s ID technik, které jsi v odpovědi opravdu použil, oddělenými čárkou. Když žádnou nepoužiješ, řádek vynech.
 
 Krizový protokol: pokud klient zmíní sebevraždu, sebepoškození, že nechce žít, nebo ohrožení sebe či druhých, začni odpověď přesně značkou ${CRISIS_TAG}. Pak projev pochopení, vyzvi ho, ať hned zavolá Linku první psychické pomoci 116 123 (nonstop) nebo v bezprostředním ohrožení 112, a řekni mu, že psycholog dostal upozornění. V takové odpovědi nenabízej cvičení. Značku ${CRISIS_TAG} jindy nepoužívej.
 
 Plán od psychologa:
 ${client.plan}
+
+<knihovna_technik>
+${techniques
+  .map((t) => `id: ${t.id}\nnázev: ${t.title}\nkdy: ${t.whenToUse}\npostup: ${t.steps}\nzdroj: ${t.source.name}`)
+  .join("\n\n")}
+</knihovna_technik>
 
 Poslední check-iny:
 ${recent || "zatím žádné"}
@@ -43,7 +52,7 @@ ${last ? `Dnešní stav: nálada ${last.mood}/5, úzkost ${last.anxiety}/10.` : 
 
 export function summaryPrompt(
   client: Client,
-  data: { checkins: Checkin[]; tasks: Task[]; messages: Message[]; events: Event[]; alerts: Alert[] },
+  data: { checkins: Checkin[]; tasks: Task[]; messages: Message[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[] },
 ) {
   const chat = data.messages
     .map((m) => `${m.role === "user" ? "Klient" : "AI"} (${fmtDate(m.created_at)}): ${m.content}`)
@@ -52,7 +61,7 @@ export function summaryPrompt(
 
 **Nálada a úzkost:** jedna věta o trendu.
 **Úkoly:** jedna věta.
-**Témata z rozhovorů:** jedna věta.
+**Témata z rozhovorů a deníku myšlenek:** jedna věta.
 **Rizika:** jedna věta, nebo „bez známek rizika“.
 **Na co se zeptat:**
 - otázka
@@ -71,6 +80,10 @@ ${data.checkins.map((c) => `${fmtDate(c.created_at)}: nálada ${c.mood}/5, úzko
 <ukoly>
 ${data.tasks.map((t) => `${t.title}: ${t.week_done}/${t.week_goal} tento týden${t.done_today ? ", dnes splněno" : ""}`).join("\n")}
 </ukoly>
+
+<denik_myslenek>
+${data.thoughts.map((t) => `${fmtDate(t.created_at)}: situace „${t.situation}“, myšlenka „${t.thought}“, ${t.emotion} ${t.intensity_before} %${t.balanced ? `, vyváženě „${t.balanced}“ → ${t.intensity_after} %` : ""}`).join("\n") || "žádné záznamy"}
+</denik_myslenek>
 
 <udalosti>
 ${data.events.map((e) => `${fmtDate(e.created_at)}: ${e.text}`).join("\n")}

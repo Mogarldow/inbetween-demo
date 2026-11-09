@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { addAlert, addEvent, getClient, q, type Checkin, type Message } from "@/lib/db";
 import { companionSystemPrompt, streamText } from "@/lib/claude";
 import { demoChatReply } from "@/lib/demo";
+import { getTechnique, retrieveTechniques, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 import { CRISIS_TAG, isRisky } from "@/lib/risk";
 
 export const dynamic = "force-dynamic";
@@ -31,19 +32,24 @@ export async function POST(req: NextRequest) {
     q<Message>("SELECT * FROM (SELECT * FROM messages WHERE client_id = $1 ORDER BY created_at DESC LIMIT 20) t ORDER BY created_at", [clientId]),
   ]);
 
+  // Vybereme techniky z knihovny, které psycholog povolil a které k situaci sedí.
+  const recentText = [...history.slice(-4).map((m) => m.content), message].join(" ");
+  const techniques = retrieveTechniques(recentText, client.allowed_techniques ?? []);
+  if (localRisk) techniques.unshift(getTechnique(CRISIS_TECHNIQUE_ID)!);
+
   // API vyžaduje, aby konverzace začínala zprávou uživatele.
   const turns = history.map((m) => ({ role: m.role, content: m.content }));
   while (turns.length && turns[0].role !== "user") turns.shift();
 
   const { body } = streamText({
-    system: companionSystemPrompt(client, checkins),
+    system: companionSystemPrompt(client, checkins, techniques),
     messages: turns,
     effort: "low",
     maxTokens: 2000,
     fallbackText: localRisk
       ? `${CRISIS_TAG} Děkuju, že jsi mi to napsal/a. Prosím, zavolej hned Linku první psychické pomoci 116 123, je tam někdo nonstop. Pokud jsi v bezprostředním ohrožení, volej 112. Tvůj psycholog dostal upozornění.`
       : SAFE_FALLBACK,
-    demoText: demoChatReply(message, client),
+    demoText: demoChatReply(message, client, techniques),
     // Po dokončení uložíme odpověď a případně upozornění.
     onDone: async ({ text: reply }) => {
       await q("INSERT INTO messages (client_id, role, content) VALUES ($1, 'assistant', $2)", [clientId, reply]);

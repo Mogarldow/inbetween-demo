@@ -11,6 +11,11 @@ INSERT INTO clients (id, name, salutation, therapist, focus, next_session, plan,
 ('cekarna', 'Čekárna (4)', '', 'Mgr. Jana Dvořáková', 'Noví klienti před 1. sezením', 'Nejdéle čeká 6 týdnů',
  E'Podpora před prvním sezením: check-iny, techniky zvládání stresu, krizové linky.', TRUE);
 
+UPDATE clients SET allowed_techniques = ARRAY['dech-446','zaznam-myslenek','dukazy-pro-proti','dekatastrofizace','uzemneni-54321','prochazka','spankova-hygiena'] WHERE id = 'petra';
+UPDATE clients SET allowed_techniques = ARRAY['mala-aktivita','spankova-hygiena','prochazka','cas-na-starosti','laskava-veta'] WHERE id = 'tomas';
+UPDATE clients SET allowed_techniques = ARRAY['postupna-expozice','dukazy-pro-proti','dech-446','laskava-veta'] WHERE id = 'lucie';
+UPDATE clients SET allowed_techniques = ARRAY['dech-446','uzemneni-54321','spankova-hygiena'] WHERE id = 'cekarna';
+
 INSERT INTO checkins (client_id, mood, anxiety, note, created_at) VALUES
 ('petra', 3, 6, NULL,                                     now() - interval '6 days'),
 ('petra', 2, 7, 'Porada se šéfem, celý den stažený žaludek', now() - interval '5 days'),
@@ -27,6 +32,10 @@ INSERT INTO tasks (client_id, title, hint, week_done, week_goal) VALUES
 ('petra', 'Procházka 20 minut', 'Ideálně po práci.',                         5, 7),
 ('tomas', 'Večer bez obrazovek','Hodinu před spaním.',                       1, 7),
 ('lucie', 'Krátká konverzace',  'Třeba s prodavačkou nebo kolegou.',         4, 5);
+
+INSERT INTO thought_records (client_id, situation, thought, emotion, intensity_before, balanced, intensity_after, created_at) VALUES
+('petra', 'Šéf mi na poradě skočil do řeči.', 'Myslí si, že jsem neschopná.', 'stud', 80,
+ 'Skáče do řeči všem, minulý týden mě za report pochválil.', 45, now() - interval '5 days');
 
 INSERT INTO events (client_id, text, created_at) VALUES
 ('petra', 'Splněno: procházka 20 minut.',                                  now() - interval '2 days'),

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Client, Checkin, Message, Task } from "@/lib/db";
+import { getTechnique, splitSources, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 const CLIENT_ID = "petra"; // demo: jeden přihlášený klient
 const CRISIS_TAG = "[KRIZE]";
@@ -66,6 +67,19 @@ export default function KlientPage() {
                   <p className="note" style={{ margin: 0 }}>Plán nastavil tvůj psycholog. Parťák se ho drží a nic v něm nemění.</p>
                   <div style={{ whiteSpace: "pre-wrap" }}>{state.client.plan}</div>
                 </div>
+                <div className="card">
+                  <h3>Moje techniky</h3>
+                  <p className="note" style={{ margin: 0 }}>Vybral je tvůj psycholog z knihovny ověřených postupů.</p>
+                  {(state.client.allowed_techniques ?? []).map(getTechnique).filter((t) => !!t).map((t) => (
+                    <div className="task" key={t!.id}>
+                      <div>
+                        <b>{t!.title}</b>
+                        <small>{t!.steps}</small>
+                        <small><a href={t!.source.url} target="_blank" rel="noreferrer">Zdroj: {t!.source.name}</a></small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 <Hotlines />
               </div>
             )}
@@ -101,7 +115,7 @@ function Home({ state, therapistFirst, reload, openChat }: {
   const [anx, setAnx] = useState(5);
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState<null | number>(null);
-  const [sheet, setSheet] = useState<null | "breath" | "sos">(null);
+  const [sheet, setSheet] = useState<null | "breath" | "sos" | "thought">(null);
   const [busy, setBusy] = useState(false);
 
   async function saveCheckin() {
@@ -163,6 +177,9 @@ function Home({ state, therapistFirst, reload, openChat }: {
               <label className="task" key={t.id}>
                 <input type="checkbox" id={`task-${t.id}`} checked={t.done_today} onChange={(e) => toggleTask(t, e.target.checked)} />
                 <div><b>{t.title}</b><small>{t.hint} Tento týden {t.week_done}/{t.week_goal}.</small></div>
+                {/^deník myšlenek/i.test(t.title) && (
+                  <button className="btn ghost sm" onClick={(e) => { e.preventDefault(); setSheet("thought"); }}>Vyplnit</button>
+                )}
               </label>
             ))}
           </div>
@@ -178,6 +195,7 @@ function Home({ state, therapistFirst, reload, openChat }: {
       </div>
 
       {sheet === "breath" && <Breathing onClose={() => setSheet(null)} />}
+      {sheet === "thought" && <ThoughtForm onClose={() => setSheet(null)} onSaved={reload} />}
       {sheet === "sos" && (
         <div className="sheet">
           <h2>Nejsi v tom sám/sama</h2>
@@ -188,6 +206,66 @@ function Home({ state, therapistFirst, reload, openChat }: {
         </div>
       )}
     </>
+  );
+}
+
+function ThoughtForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [step, setStep] = useState(0);
+  const [f, setF] = useState({ situation: "", thought: "", emotion: "", before: 70, balanced: "", after: 40 });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) =>
+    setF({ ...f, [k]: k === "before" || k === "after" ? Number(e.target.value) : e.target.value });
+
+  async function save() {
+    setBusy(true); setErr("");
+    const r = await post("/api/thoughts", {
+      clientId: CLIENT_ID, situation: f.situation, thought: f.thought, emotion: f.emotion,
+      intensityBefore: f.before, balanced: f.balanced, intensityAfter: f.after,
+    });
+    setBusy(false);
+    if (!r.ok) { setErr((await r.json()).error || "Nepodařilo se uložit."); return; }
+    setStep(2); onSaved();
+  }
+
+  return (
+    <div className="sheet form">
+      <div className="row"><h2>Deník myšlenek</h2><span className="label">{step < 2 ? `Krok ${step + 1} ze 2` : "Hotovo"}</span></div>
+      {step === 0 && (
+        <>
+          <label>Situace<small>Co se stalo? Kde, kdy, s kým.</small>
+            <textarea rows={2} value={f.situation} onChange={set("situation")} placeholder="Šéf mi na poradě skočil do řeči." /></label>
+          <label>Automatická myšlenka<small>Co ti v tu chvíli proběhlo hlavou?</small>
+            <textarea rows={2} value={f.thought} onChange={set("thought")} placeholder="Myslí si, že jsem neschopná." /></label>
+          <label>Emoce<small>Jedním slovem: strach, stud, vztek, smutek…</small>
+            <input type="text" value={f.emotion} onChange={set("emotion")} placeholder="stud" /></label>
+          <label><span className="row">Jak silná byla <b>{f.before} %</b></span>
+            <input type="range" min={0} max={100} step={5} value={f.before} onChange={set("before")} /></label>
+          <button className="btn" disabled={!f.situation.trim() || !f.thought.trim() || !f.emotion.trim()} onClick={() => setStep(1)}>Dál</button>
+        </>
+      )}
+      {step === 1 && (
+        <>
+          <p className="note" style={{ margin: 0 }}>Zkus se na myšlenku „{f.thought}“ podívat zvenku. Co ji podporuje a co ji vyvrací? Co bys řekl/a kamarádovi, kdyby ji měl on?</p>
+          <label>Vyváženější pohled<small>Nemusí být pozitivní, jen realističtější.</small>
+            <textarea rows={3} value={f.balanced} onChange={set("balanced")} placeholder="Skočil do řeči i ostatním. Na minulé poradě můj návrh pochválil." /></label>
+          <label><span className="row">Jak silná je emoce teď <b>{f.after} %</b></span>
+            <input type="range" min={0} max={100} step={5} value={f.after} onChange={set("after")} /></label>
+          {err && <p className="note" style={{ color: "var(--risk)", margin: 0 }}>{err}</p>}
+          <div className="sos">
+            <button className="btn ghost" onClick={() => setStep(0)}>Zpět</button>
+            <button className="btn" disabled={busy} onClick={save}>Uložit záznam</button>
+          </div>
+        </>
+      )}
+      {step === 2 && (
+        <>
+          <p style={{ margin: 0 }}>Uloženo. {f.balanced && f.after < f.before ? `Emoce klesla z ${f.before} % na ${f.after} %. ` : ""}Záznam uvidí tvůj psycholog a probere ho s tebou na sezení.</p>
+          <button className="btn" onClick={onClose}>Hotovo</button>
+        </>
+      )}
+      {step < 2 && <button className="btn ghost" onClick={onClose}>Zavřít</button>}
+    </div>
   );
 }
 
@@ -272,7 +350,9 @@ function Chat({ initial }: { initial: Message[] }) {
         <div className="chat" aria-live="polite">
           {msgs.map((m, i) => {
             const crisis = m.role === "assistant" && m.content.trimStart().startsWith(CRISIS_TAG);
-            const text = m.content.replace(CRISIS_TAG, "").trim();
+            const parsed = m.role === "assistant" ? splitSources(m.content) : { text: m.content, ids: [] };
+            const text = parsed.text.replace(CRISIS_TAG, "").trim();
+            const used = parsed.ids.filter((id) => id !== CRISIS_TECHNIQUE_ID).map(getTechnique).filter((t) => !!t);
             return (
               <div key={i} className={`msg ${m.role === "user" ? "me" : "ai"}${crisis ? " crisis" : ""}`}>
                 {text || (m.role === "assistant" ? "Píšu…" : "")}
@@ -280,6 +360,15 @@ function Chat({ initial }: { initial: Message[] }) {
                   <div style={{ marginTop: 8 }}>
                     <div className="label">Linka první psychické pomoci, nonstop</div><div className="num">116 123</div>
                     <div className="label" style={{ marginTop: 4 }}>Tísňová linka</div><div className="num">112</div>
+                  </div>
+                )}
+                {used.length > 0 && (
+                  <div className="sources">
+                    {used.map((t) => (
+                      <a key={t!.id} href={t!.source.url} target="_blank" rel="noreferrer" title={t!.source.name}>
+                        {t!.title} · zdroj: {t!.source.name.split(":")[0]}
+                      </a>
+                    ))}
                   </div>
                 )}
               </div>

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Alert, Checkin, Client, Event, Task } from "@/lib/db";
+import type { Alert, Checkin, Client, Event, Task, ThoughtRecord } from "@/lib/db";
+import { TECHNIQUES, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 type ListClient = Client & { open_alerts: number; last_checkin: string | null };
-type Detail = { client: Client; checkins: Checkin[]; tasks: Task[]; events: Event[]; alerts: Alert[] };
+type Detail = { client: Client; checkins: Checkin[]; tasks: Task[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[] };
 
 const POLL_MS = 3000;
 const post = (url: string, body: unknown, method = "POST") =>
@@ -79,6 +80,11 @@ export default function PsychologPage() {
 function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reload: () => void }) {
   const [plan, setPlan] = useState(d.client.plan);
   const [planState, setPlanState] = useState<"" | "dirty" | "saved">("");
+  const [allowed, setAllowed] = useState<string[]>(d.client.allowed_techniques ?? []);
+  const toggleTech = (id: string, on: boolean) => {
+    setAllowed((a) => (on ? [...a, id] : a.filter((x) => x !== id)));
+    setPlanState("dirty");
+  };
   const [summary, setSummary] = useState("");
   const [sumBusy, setSumBusy] = useState(false);
 
@@ -91,7 +97,7 @@ function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reloa
   });
 
   async function savePlan() {
-    await post("/api/plan", { clientId: d.client.id, plan }, "PUT");
+    await post("/api/plan", { clientId: d.client.id, plan, allowedTechniques: allowed }, "PUT");
     setPlanState("saved");
     reload();
   }
@@ -172,6 +178,22 @@ function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reloa
       </div>
 
       <div className="box">
+        <div className="row"><h3>Deník myšlenek</h3><span className="label">Vyplňuje klient</span></div>
+        {d.thoughts.length === 0 ? <span className="empty">Klient zatím nic nezapsal.</span> : (
+          <div className="thoughts">
+            {d.thoughts.map((t) => (
+              <div className="thought" key={t.id}>
+                <div className="row"><b>{t.situation}</b><time>{fmt(t.created_at)}</time></div>
+                <p><span className="label">Myšlenka</span> „{t.thought}“</p>
+                <p><span className="label">Emoce</span> {t.emotion} {t.intensity_before} %{t.intensity_after !== null && <> → <b>{t.intensity_after} %</b></>}</p>
+                {t.balanced && <p><span className="label">Vyváženější pohled</span> {t.balanced}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="box">
         <div className="row">
           <h3>Shrnutí před sezením</h3>
           <button className="btn" disabled={sumBusy} onClick={makeSummary}>{summary ? "Připravit znovu" : "Připravit shrnutí"}</button>
@@ -185,8 +207,23 @@ function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reloa
       </div>
 
       <div className="box">
-        <div className="row"><h3>Plán pro parťáka</h3><span className="label">Upravuje jen psycholog</span></div>
+        <div className="row"><h3>Plán a techniky pro parťáka</h3><span className="label">Upravuje jen psycholog</span></div>
         <textarea id="plan" rows={6} value={plan} onChange={(e) => { setPlan(e.target.value); setPlanState("dirty"); }} />
+        <div>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <b>Techniky, které smí parťák nabízet</b>
+            <span className="note">{allowed.length} z {TECHNIQUES.length - 1}</span>
+          </div>
+          <div className="tech-grid">
+            {TECHNIQUES.filter((t) => t.id !== CRISIS_TECHNIQUE_ID).map((t) => (
+              <label className="tech" key={t.id}>
+                <input type="checkbox" id={`tech-${t.id}`} checked={allowed.includes(t.id)} onChange={(e) => toggleTech(t.id, e.target.checked)} />
+                <span>{t.title}<small>{t.category} · {t.source.name.split(":")[0]}</small></span>
+              </label>
+            ))}
+          </div>
+          <p className="note" style={{ marginBottom: 0 }}>Krizový postup (116 123, 112) je zapnutý vždy. Knihovnu spravuje odborný tým, každá technika má uvedený zdroj.</p>
+        </div>
         <div className="row">
           <span className="note">{planState === "saved" ? "Uloženo. Parťák se novým plánem řídí od další zprávy." : "Parťák se plánem řídí v každé odpovědi."}</span>
           <button className="btn" disabled={planState !== "dirty"} onClick={savePlan}>Uložit plán</button>
