@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Checkin, Client, Event, Message, Task, Alert, ThoughtRecord } from "./db";
+import type { Checkin, Client, Event, Message, Task, Alert, ThoughtRecord, Score } from "./db";
 import { CRISIS_TAG } from "./risk";
 import { SOURCE_TAG, type Technique } from "./techniques";
 import { DEMO_MODE } from "./demo";
@@ -52,7 +52,7 @@ ${last ? `Dnešní stav: nálada ${last.mood}/5, úzkost ${last.anxiety}/10.` : 
 
 export function summaryPrompt(
   client: Client,
-  data: { checkins: Checkin[]; tasks: Task[]; messages: Message[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[] },
+  data: { checkins: Checkin[]; tasks: Task[]; messages: Message[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[]; scores: Score[] },
 ) {
   const chat = data.messages
     .map((m) => `${m.role === "user" ? "Klient" : "AI"} (${fmtDate(m.created_at)}): ${m.content}`)
@@ -60,7 +60,7 @@ export function summaryPrompt(
   return `Připrav pro psychologa stručné shrnutí před sezením s klientem ${client.name} (${client.focus}). Vycházej jen z dat níže. Česky, nejvýš 140 slov, přesně v tomto formátu:
 
 **Nálada a úzkost:** jedna věta o trendu.
-**Úkoly:** jedna věta.
+**Úkoly a dotazníky:** jedna věta (u dotazníků trend skóre, pokud jsou).
 **Témata z rozhovorů a deníku myšlenek:** jedna věta.
 **Rizika:** jedna věta, nebo „bez známek rizika“.
 **Na co se zeptat:**
@@ -84,6 +84,14 @@ ${data.tasks.map((t) => `${t.title}: ${t.week_done}/${t.week_goal} tento týden$
 <denik_myslenek>
 ${data.thoughts.map((t) => `${fmtDate(t.created_at)}: situace „${t.situation}“, myšlenka „${t.thought}“, ${t.emotion} ${t.intensity_before} %${t.balanced ? `, vyváženě „${t.balanced}“ → ${t.intensity_after} %` : ""}`).join("\n") || "žádné záznamy"}
 </denik_myslenek>
+
+<dotazniky>
+${data.scores.map((x) => `${fmtDate(x.created_at)}: ${x.kind === "gad7" ? "GAD-7" : "PHQ-9"} ${x.score}${x.item9 ? " (kladná otázka 9!)" : ""}`).join("\n") || "nesdílí nebo nevyplnil"}
+</dotazniky>
+
+<klient_chce_probrat>
+${client.prep || "nic"}
+</klient_chce_probrat>
 
 <udalosti>
 ${data.events.map((e) => `${fmtDate(e.created_at)}: ${e.text}`).join("\n")}

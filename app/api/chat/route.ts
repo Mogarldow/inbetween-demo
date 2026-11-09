@@ -20,7 +20,12 @@ export async function POST(req: NextRequest) {
   if (!client) return NextResponse.json({ error: "Klient neexistuje." }, { status: 404 });
 
   await q("INSERT INTO messages (client_id, role, content) VALUES ($1, 'user', $2)", [clientId, message]);
-  await addEvent(clientId, `Chat s parťákem: „${message.length > 80 ? message.slice(0, 80) + "…" : message}“`);
+  await addEvent(
+    clientId,
+    client.share_chat
+      ? `Chat s parťákem: „${message.length > 80 ? message.slice(0, 80) + "…" : message}“`
+      : "Chat s parťákem (znění klient nesdílí, uvidíte ho jen ve shrnutí).",
+  );
 
   const localRisk = isRisky(message);
   if (localRisk) {

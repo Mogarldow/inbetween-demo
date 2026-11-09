@@ -1,6 +1,6 @@
 // Ukázkový režim: když není nastavený ANTHROPIC_API_KEY, aplikace odpovídá
 // předpřipravenými texty. Demo tak běží zdarma; po doplnění klíče přejde na živou AI.
-import type { Alert, Checkin, Client, Event, Message, Task, ThoughtRecord } from "./db";
+import type { Alert, Checkin, Client, Event, Message, Task, ThoughtRecord, Score } from "./db";
 import { CRISIS_TAG, isRisky } from "./risk";
 import { CRISIS_TECHNIQUE_ID, SOURCE_TAG, type Technique } from "./techniques";
 
@@ -24,9 +24,10 @@ export function demoChatReply(text: string, client: Client, techniques: Techniqu
 
 export function demoSummary(
   client: Client,
-  d: { checkins: Checkin[]; tasks: Task[]; messages: Message[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[] },
+  d: { checkins: Checkin[]; tasks: Task[]; messages: Message[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[]; scores: Score[] },
 ) {
   const c = d.checkins;
+  const trend = (k: Score["kind"]) => d.scores.filter((x) => x.kind === k).map((x) => x.score).join(" → ");
   const avg = (k: "mood" | "anxiety") => (c.length ? (c.reduce((s, x) => s + x[k], 0) / c.length).toFixed(1) : "–");
   const last = c.at(-1);
   const worst = [...c].sort((a, b) => b.anxiety - a.anxiety)[0];
@@ -34,7 +35,7 @@ export function demoSummary(
   const userMsgs = d.messages.filter((m) => m.role === "user").map((m) => `„${m.content.replace(/\[ZDROJE:[^\]]*\]/, "").trim().slice(0, 60)}“`);
   const notes = c.filter((x) => x.note).map((x) => `„${x.note}“`).slice(-2);
   return `**Nálada a úzkost:** za posledních ${c.length} check-inů průměrná nálada ${avg("mood")}/5 a úzkost ${avg("anxiety")}/10${last ? `, naposledy ${last.mood}/5 a ${last.anxiety}/10` : ""}.${worst?.note ? ` Nejvyšší úzkost u poznámky „${worst.note}“.` : ""}
-**Úkoly:** ${tasks || "bez zadaných úkolů"}.
+**Úkoly a dotazníky:** ${tasks || "bez zadaných úkolů"}.${trend("gad7") ? ` GAD-7 ${trend("gad7")}.` : ""}${trend("phq9") ? ` PHQ-9 ${trend("phq9")}.` : ""}${client.prep ? `\n**Klient chce probrat:** ${client.prep.replace(/\n+/g, " ")}` : ""}
 **Témata z rozhovorů:** ${userMsgs.length ? userMsgs.slice(-3).join(", ") : notes.length ? `z poznámek ${notes.join(", ")}` : "klient tento týden s parťákem nepsal"}.
 **Deník myšlenek:** ${d.thoughts.length ? d.thoughts.slice(0, 2).map((t) => `„${t.thought}“ (${t.emotion} ${t.intensity_before} %${t.intensity_after !== null ? ` → ${t.intensity_after} %` : ""})`).join(", ") : "bez záznamů"}.
 **Rizika:** ${d.alerts.length ? d.alerts.map((a) => a.text).join(" ") : "bez známek rizika"}

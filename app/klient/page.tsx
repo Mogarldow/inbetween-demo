@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Client, Checkin, Message, Task } from "@/lib/db";
+import type { Client, Checkin, Message, Outreach, Score, Task } from "@/lib/db";
+import type { QKind } from "@/lib/questionnaires";
+import { MicButton, OutreachCard, PrepCard, PrivacyCard, QuestionnaireSheet, QuestionnairesCard, RemindersCard, Toast } from "./extras";
 import { getTechnique, splitSources, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 const CLIENT_ID = "petra"; // demo: jeden přihlášený klient
@@ -10,7 +12,7 @@ const CRISIS_TAG = "[KRIZE]";
 const MOODS: [number, string][] = [[1, "Hrozně"], [2, "Špatně"], [3, "Jde to"], [4, "Dobře"], [5, "Skvěle"]];
 const SUGGESTIONS = ["Zítra mám poradu a jsem z toho na nervy", "Nemůžu usnout", "Mám si zvýšit dávku léků?"];
 
-type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[] };
+type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[]; scores: Score[]; outreach: Outreach[] };
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -21,6 +23,8 @@ export default function KlientPage() {
   const [state, setState] = useState<State | null>(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"home" | "chat" | "plan">("home");
+  const [toast, setToast] = useState<[string, string] | null>(null);
+  const closeToast = useCallback(() => setToast(null), []);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/state?client=${CLIENT_ID}`, { cache: "no-store" });
@@ -80,9 +84,13 @@ export default function KlientPage() {
                     </div>
                   ))}
                 </div>
+                <PrepCard client={state.client} />
+                <RemindersCard client={state.client} onToast={setToast} />
+                <PrivacyCard client={state.client} therapist={therapistFirst} />
                 <Hotlines />
               </div>
             )}
+            <Toast toast={toast} onClose={closeToast} />
 
             <nav className="tabs" role="tablist">
               {([["home", "Dnes"], ["chat", "Parťák"], ["plan", "Plán"]] as const).map(([k, l]) => (
@@ -116,6 +124,7 @@ function Home({ state, therapistFirst, reload, openChat }: {
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState<null | number>(null);
   const [sheet, setSheet] = useState<null | "breath" | "sos" | "thought">(null);
+  const [qKind, setQKind] = useState<QKind | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function saveCheckin() {
@@ -135,6 +144,8 @@ function Home({ state, therapistFirst, reload, openChat }: {
   return (
     <>
       <div className="scr-body">
+        <OutreachCard outreach={state.outreach ?? []} therapist={therapistFirst} />
+
         <div className="card next">
           <span className="label">Příští sezení</span>
           <b>{state.client.next_session} · {state.client.therapist}</b>
@@ -185,6 +196,8 @@ function Home({ state, therapistFirst, reload, openChat }: {
           </div>
         </div>
 
+        <QuestionnairesCard scores={state.scores ?? []} onOpen={setQKind} />
+
         <div className="card">
           <h3>Potřebuješ to teď?</h3>
           <div className="sos">
@@ -196,6 +209,7 @@ function Home({ state, therapistFirst, reload, openChat }: {
 
       {sheet === "breath" && <Breathing onClose={() => setSheet(null)} />}
       {sheet === "thought" && <ThoughtForm onClose={() => setSheet(null)} onSaved={reload} />}
+      {qKind && <QuestionnaireSheet key={qKind} kind={qKind} clientId={CLIENT_ID} onClose={() => setQKind(null)} onSaved={reload} />}
       {sheet === "sos" && (
         <div className="sheet">
           <h2>Nejsi v tom sám/sama</h2>
@@ -306,6 +320,7 @@ function Chat({ initial }: { initial: Message[] }) {
   const [msgs, setMsgs] = useState<ChatMsg[]>(initial.map((m) => ({ role: m.role, content: m.content })));
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [micStatus, setMicStatus] = useState("");
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -381,8 +396,10 @@ function Chat({ initial }: { initial: Message[] }) {
           </div>
         )}
       </div>
+      {micStatus && <span className="ai-status" style={{ padding: "0 14px" }}>{micStatus}</span>}
       <form className="composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
-        <input type="text" id="chatIn" placeholder="Napiš, co se děje…" autoComplete="off" value={input} onChange={(e) => setInput(e.target.value)} />
+        <MicButton value={input} onText={setInput} onStatus={setMicStatus} />
+        <input type="text" id="chatIn" placeholder="Napiš nebo nadiktuj, co se děje…" autoComplete="off" value={input} onChange={(e) => setInput(e.target.value)} />
         <button className="btn" disabled={busy}>Poslat</button>
       </form>
     </>

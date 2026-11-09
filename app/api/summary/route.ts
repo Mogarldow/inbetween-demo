@@ -8,7 +8,7 @@ export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   const { clientId } = await req.json();
-  const state = await getClientState(clientId);
+  const state = await getClientState(clientId, true); // jen to, co klient sdílí
   if (!state.client) return NextResponse.json({ error: "Klient neexistuje." }, { status: 404 });
 
   const { body } = streamText({

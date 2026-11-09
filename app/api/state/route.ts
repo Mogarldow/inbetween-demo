@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
     );
     return NextResponse.json({ clients });
   }
-  const state = await getClientState(id);
+  // ?view=psycholog vrací jen to, co klient sdílí
+  const state = await getClientState(id, req.nextUrl.searchParams.get("view") === "psycholog");
   if (!state.client) return NextResponse.json({ error: "Klient neexistuje." }, { status: 404 });
   return NextResponse.json(state);
 }

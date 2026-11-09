@@ -172,3 +172,23 @@ a{color:var(--accent)}
 .thought p{margin:4px 0;font-size:14px}
 .thought time{color:var(--muted);font-size:12px;white-space:nowrap}
 .thought .label{margin-right:6px}
+.toast{position:absolute;top:10px;left:10px;right:10px;z-index:8;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px -12px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:2px;text-align:left;font-size:13px;cursor:pointer}
+.q-item{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.q-opts{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.q-opts button{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:5px 2px;font-size:11px;line-height:1.2}
+.q-opts button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar{display:grid;grid-template-columns:104px 1fr 28px;gap:8px;align-items:center;font-size:12px}
+.bar i{display:block;height:10px;border-radius:5px;background:var(--accent)}
+.bar i.warn{background:var(--amber)}
+.bar i.risk{background:var(--risk)}
+.bar span{color:var(--muted)}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+.opt input[type=time]{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:3px 6px;font:inherit;color:inherit}
+.opt input[type=checkbox]{accent-color:var(--accent);width:18px;height:18px}
+.wl{width:100%;border-collapse:collapse;font-size:13px}
+.wl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px;border-bottom:1px solid var(--line)}
+.wl td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.mic{width:42px;padding:0;flex-shrink:0}
+.mic[aria-pressed="true"]{background:var(--risk);color:#fff;border-color:var(--risk)}
+.secure{margin-top:auto;font-size:11px;color:var(--muted);padding:10px 6px 0;border-top:1px solid var(--line)}

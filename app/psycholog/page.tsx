@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Alert, Checkin, Client, Event, Task, ThoughtRecord } from "@/lib/db";
+import type { Alert, Checkin, Client, Event, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
+import { OutreachBox, PrepBox, ScoresBox, WaitlistView, consentLine } from "./extras";
 import { TECHNIQUES, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 type ListClient = Client & { open_alerts: number; last_checkin: string | null };
-type Detail = { client: Client; checkins: Checkin[]; tasks: Task[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[] };
+type Detail = { client: Client; checkins: Checkin[]; tasks: Task[]; events: Event[]; alerts: Alert[]; thoughts: ThoughtRecord[]; scores: Score[]; outreach: Outreach[] };
 
 const POLL_MS = 3000;
 const post = (url: string, body: unknown, method = "POST") =>
@@ -27,7 +28,7 @@ export default function PsychologPage() {
     try {
       const [l, d] = await Promise.all([
         fetch("/api/state", { cache: "no-store" }).then((r) => r.json()),
-        fetch(`/api/state?client=${selected}`, { cache: "no-store" }).then((r) => r.json()),
+        fetch(`/api/state?client=${selected}&view=psycholog`, { cache: "no-store" }).then((r) => r.json()),
       ]);
       if (l.error || d.error) throw new Error(l.error || d.error);
       setClients(l.clients);
@@ -70,8 +71,9 @@ export default function PsychologPage() {
               </button>
             );
           })}
+          <div className="secure">Data v EU (Frankfurt), šifrovaná. Přístup jen vy a klient. Každé zobrazení se zapisuje do auditního logu.</div>
         </aside>
-        {detail ? <ClientDetail key={selected} d={detail} seen={seen.current} reload={load} /> : <div className="main"><p className="empty">Načítám…</p></div>}
+        {detail?.client.waiting ? <WaitlistView client={detail.client} /> : detail ? <ClientDetail key={selected} d={detail} seen={seen.current} reload={load} /> : <div className="main"><p className="empty">Načítám…</p></div>}
       </div>
     </div>
   );
@@ -142,6 +144,7 @@ function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reloa
         <div><span className="label">{d.client.focus}</span><h2>{d.client.name}</h2></div>
         <span className="note">{d.client.next_session}</span>
       </div>
+      <span className="note" style={{ marginTop: -8 }}>{consentLine(d.client)}</span>
 
       {d.alerts.length > 0 && (
         <div className="box alert">
@@ -177,9 +180,16 @@ function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reloa
         </div>
       </div>
 
+      <div className="grid2">
+        <ScoresBox client={d.client} scores={d.scores ?? []} />
+        <PrepBox client={d.client} />
+      </div>
+
+      <OutreachBox client={d.client} outreach={d.outreach ?? []} reload={reload} />
+
       <div className="box">
         <div className="row"><h3>Deník myšlenek</h3><span className="label">Vyplňuje klient</span></div>
-        {d.thoughts.length === 0 ? <span className="empty">Klient zatím nic nezapsal.</span> : (
+        {!d.client.share_thoughts ? <span className="empty">Klient deník myšlenek nesdílí. Na sezení ho může ukázat sám.</span> : d.thoughts.length === 0 ? <span className="empty">Klient zatím nic nezapsal.</span> : (
           <div className="thoughts">
             {d.thoughts.map((t) => (
               <div className="thought" key={t.id}>
