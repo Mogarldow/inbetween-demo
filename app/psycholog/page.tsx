@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Alert, Checkin, Client, Event, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
 import { OutreachBox, PrepBox, ScoresBox, SessionNoteBox, WaitlistView, consentLine } from "./extras";
 import { LibraryView, WeekPicker } from "./library";
+import { NewClientView } from "./admit";
 import type { Material } from "@/lib/materials";
 import { TECHNIQUES, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
@@ -13,6 +14,7 @@ type Detail = { client: Client; checkins: Checkin[]; tasks: Task[]; events: Even
 
 const POLL_MS = 3000;
 const LIB = "__knihovna";
+const NEW = "__novy";
 const post = (url: string, body: unknown, method = "POST") =>
   fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const daysAgo = (iso: string | null) => (iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 99);
@@ -31,11 +33,11 @@ export default function PsychologPage() {
     try {
       const [l, d] = await Promise.all([
         fetch("/api/state", { cache: "no-store" }).then((r) => r.json()),
-        selected === LIB ? Promise.resolve({}) : fetch(`/api/state?client=${selected}&view=psycholog`, { cache: "no-store" }).then((r) => r.json()),
+        selected === LIB || selected === NEW ? Promise.resolve({}) : fetch(`/api/state?client=${selected}&view=psycholog`, { cache: "no-store" }).then((r) => r.json()),
       ]);
       if (l.error || d.error) throw new Error(l.error || d.error);
       setClients(l.clients);
-      setDetail(selected === LIB ? null : d);
+      setDetail(selected === LIB || selected === NEW ? null : d);
       setError("");
     } catch {
       setError("Nepodařilo se načíst data. Běží databáze a je nastavená DATABASE_URL?");
@@ -74,6 +76,10 @@ export default function PsychologPage() {
               </button>
             );
           })}
+          <button className="cl" aria-current={selected === NEW} onClick={() => { setSelected(NEW); setDetail(null); }}>
+            <b>+ Nový klient</b>
+            <small>Přidat a poslat pozvánku</small>
+          </button>
           <h3 style={{ marginTop: 14 }}>Nástroje</h3>
           <button className="cl" aria-current={selected === LIB} onClick={() => { setSelected(LIB); setDetail(null); }}>
             <b>Moje knihovna</b>
@@ -81,7 +87,7 @@ export default function PsychologPage() {
           </button>
           <div className="secure">Data v EU (Frankfurt), šifrovaná. Přístup jen vy a klient. Každé zobrazení se zapisuje do auditního logu.</div>
         </aside>
-        {selected === LIB ? <LibraryView /> : detail?.client.waiting ? <WaitlistView client={detail.client} /> : detail ? <ClientDetail key={selected} d={detail} seen={seen.current} reload={load} /> : <div className="main"><p className="empty">Načítám…</p></div>}
+        {selected === LIB ? <LibraryView /> : selected === NEW ? <NewClientView onCreated={(id) => { setSelected(id); setDetail(null); }} /> : detail?.client.waiting ? <WaitlistView client={detail.client} onAdmitted={(id) => { setSelected(id); setDetail(null); }} /> : detail ? <ClientDetail key={selected} d={detail} seen={seen.current} reload={load} /> : <div className="main"><p className="empty">Načítám…</p></div>}
       </div>
     </div>
   );

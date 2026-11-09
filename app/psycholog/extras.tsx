@@ -1,4 +1,5 @@
 "use client";
+import { ClientForm } from "./admit";
 
 // Doplňky přehledu psychologa: dotazníky, příprava klienta, zpráva navržená AI, čekárna.
 import { useEffect, useState } from "react";
@@ -122,8 +123,9 @@ function Mini({ md }: { md: string }) {
   return <>{md.split("\n").filter((l) => l.trim()).map((l, i) => <p key={i} style={{ margin: "2px 0" }}>{l.replace(/\*\*/g, "")}</p>)}</>;
 }
 
-export function WaitlistView({ client }: { client: Client }) {
+export function WaitlistView({ client, onAdmitted }: { client: Client; onAdmitted: (id: string) => void }) {
   const [people, setPeople] = useState<WaitPerson[]>([]);
+  const [admit, setAdmit] = useState<WaitPerson | null>(null);
   const [triage, setTriage] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => { fetch("/api/waitlist", { cache: "no-store" }).then((r) => r.json()).then((j) => setPeople(j.people ?? [])); }, []);
@@ -146,7 +148,7 @@ export function WaitlistView({ client }: { client: Client }) {
         <div className="row"><h3>Pořadí</h3><button className="btn" disabled={busy} onClick={suggest}>{busy ? "Připravuji…" : triage ? "Navrhnout znovu" : "Navrhnout pořadí"}</button></div>
         <div style={{ overflowX: "auto" }}>
           <table className="wl">
-            <thead><tr><th>Klient</th><th>Čeká</th><th>GAD-7</th><th>PHQ-9</th><th>Program</th><th>Stav</th></tr></thead>
+            <thead><tr><th>Klient</th><th>Čeká</th><th>GAD-7</th><th>PHQ-9</th><th>Program</th><th>Stav</th><th></th></tr></thead>
             <tbody>
               {people.map((p) => {
                 const tone = p.item9 ? "risk" : p.gad7 >= 10 || p.phq9 >= 10 ? "warn" : "ok";
@@ -156,13 +158,19 @@ export function WaitlistView({ client }: { client: Client }) {
                     <td>
                       <span className={`pill ${tone}`}>{p.item9 ? "Kontaktovat dnes" : tone === "warn" ? "Sledovat" : "Stabilní"}</span>
                       {p.note && <small className="note" style={{ display: "block" }}>{p.note}</small>}
+                      {p.client_id && <small className="note" style={{ display: "block" }}>Používá aplikaci bez psychologa</small>}
                     </td>
+                    <td><button className="btn ghost sm" onClick={() => setAdmit(p)}>Přijmout</button></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+        {admit && (
+          <ClientForm key={admit.id} waitId={admit.id} initialName={admit.name} initialFocus={admit.note ?? ""} fromApp={!!admit.client_id}
+            onCancel={() => setAdmit(null)} onDone={onAdmitted} />
+        )}
         {triage && <div className="summary"><Mini md={triage} /></div>}
         <div className="decide">Pořadí určuje psycholog. Kladná odpověď na otázku 9 (myšlenky na smrt) se hlásí hned a nečeká na AI.</div>
       </div>

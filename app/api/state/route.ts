@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
               (SELECT max(created_at) FROM checkins k WHERE k.client_id = c.id) AS last_checkin
          FROM clients c WHERE NOT c.solo ORDER BY c.waiting, c.name`,
     );
+    const [w] = await q<{ n: number }>("SELECT count(*)::int AS n FROM waitlist");
+    for (const c of clients as { id: string; name: string }[]) if (c.id === "cekarna") c.name = `Čekárna (${w.n})`;
     return NextResponse.json({ clients });
   }
   // ?view=psycholog vrací jen to, co klient sdílí
