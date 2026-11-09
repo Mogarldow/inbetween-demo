@@ -1,14 +1,61 @@
 import { Pool } from "pg";
+import { mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-// Jeden pool na proces (Next.js v dev režimu modul načítá opakovaně).
-const g = globalThis as unknown as { __pool?: Pool };
-export const pool =
-  g.__pool ??
-  new Pool({
-    connectionString: process.env.DATABASE_URL,
-    max: 5,
-  });
-if (process.env.NODE_ENV !== "production") g.__pool = pool;
+// Databáze: s DATABASE_URL se připojí k Postgresu (Neon, Vercel).
+// Bez ní (lokální spuštění) použije vestavěný Postgres PGlite uložený ve složce .data,
+// který se při prvním startu sám založí a naplní ukázkovými daty. Nic se neinstaluje.
+type Rows = { rows: unknown[] };
+type Conn = { query: (text: string, params?: unknown[]) => Promise<Rows>; release: () => void };
+type Db = { query: (text: string, params?: unknown[]) => Promise<Rows>; connect: () => Promise<Conn> };
+
+const g = globalThis as unknown as { __pool?: Db };
+
+function pgPool(): Db {
+  return new Pool({ connectionString: process.env.DATABASE_URL, max: 5 }) as unknown as Db;
+}
+
+function pglitePool(): Db {
+  const dataDir = process.env.PGLITE_DIR || join(process.cwd(), ".data", "pglite");
+  let _ready: ReturnType<typeof open> | null = null;
+  const open = async () => {
+    mkdirSync(dataDir, { recursive: true });
+    const { PGlite } = await import("@electric-sql/pglite");
+    const db = await PGlite.create(dataDir);
+    const t = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_name = 'clients'");
+    if (!t.rows[0].n) {
+      for (const f of ["db/schema.sql", "db/seed.sql", "db/extras.sql"]) await db.exec(readFileSync(join(process.cwd(), f), "utf8"));
+      console.log("Vestavěná databáze založena v", dataDir);
+    }
+    return db;
+  };
+  // PGlite má jedno spojení: dotazy řadíme za sebe, transakce drží zámek až do release().
+  let chain: Promise<unknown> = Promise.resolve();
+  const lock = () => {
+    let release!: () => void;
+    const next = new Promise<void>((r) => (release = r));
+    const acquired = chain.then(() => release);
+    chain = chain.then(() => next);
+    return acquired;
+  };
+  const raw = async (text: string, params?: unknown[]) => {
+    const db = await (_ready ??= open());
+    const r = await db.query(text, params as unknown[]);
+    return { rows: r.rows as unknown[] };
+  };
+  return {
+    async query(text, params) {
+      const release = await lock();
+      try { return await raw(text, params); } finally { release(); }
+    },
+    async connect() {
+      const release = await lock();
+      return { query: raw, release };
+    },
+  };
+}
+
+export const pool: Db = (g.__pool ??= process.env.DATABASE_URL ? pgPool() : pglitePool());
 
 export async function q<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
   const res = await pool.query(text, params);

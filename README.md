@@ -34,14 +34,22 @@ Bez `ANTHROPIC_API_KEY` běží demo v ukázkovém režimu: parťák odpovídá 
 - **Claude API** přes `@anthropic-ai/sdk`, model `claude-opus-5-5`, streamované odpovědi
 - Nasazení na **Vercel**
 
-## Spuštění lokálně
+## Spuštění lokálně (databáze + živý Claude zdarma)
 
-1. Nainstaluj Node.js 20 nebo novější.
-2. `npm install`
-3. Zkopíruj `.env.example` do `.env.local` a doplň `DATABASE_URL` a `ANTHROPIC_API_KEY`.
-4. Vytvoř tabulky a ukázková data: `npm run db:setup`
-   (skript čte `DATABASE_URL` z prostředí, např. `DATABASE_URL=... npm run db:setup`)
-5. `npm run dev` a otevři http://localhost:3000
+Lokálně aplikace nepotřebuje nic dalšího instalovat ani platit:
+
+- **Databáze:** bez `DATABASE_URL` se použije vestavěný Postgres (PGlite) ve složce `.data`. Při prvním startu se sám založí a naplní ukázkovými daty. Všechno, co v aplikaci uděláš, se do něj ukládá a vydrží i restart.
+- **Claude:** když je na počítači nainstalovaný a přihlášený **Claude Code** (`claude`), aplikace volá Clauda přes něj, tedy přes tvoje předplatné Claude, bez API klíče. Bez Claude Code běží ukázkové odpovědi, s `ANTHROPIC_API_KEY` se použije Claude API.
+
+Postup:
+
+1. Nainstaluj Node.js 20 nebo novější a Claude Code (a jednou spusť `claude`, aby ses přihlásil).
+2. Windows: dvojklik na `spustit-inbetween.bat`. Jinde: `npm install` a `npm run local`.
+3. Otevře se http://localhost:3000/klient. Psycholog je na `/psycholog`, režim bez psychologa na `/klient?id=nikola`.
+
+Data vrátíš do výchozího stavu přes `npm run db:reset`. Model zvolíš proměnnou `CLAUDE_CLI_MODEL` (výchozí `opus`, rychlejší `sonnet`).
+
+Vývoj s vlastním Postgresem: nastav `DATABASE_URL`, spusť `npm run db:setup` a `npm run dev`.
 
 ## Nasazení (Vercel + Neon)
 

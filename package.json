@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:setup": "node scripts/db-setup.mjs"
+    "db:setup": "node scripts/db-setup.mjs",
+    "local": "node scripts/local.mjs",
+    "db:reset": "node scripts/db-reset.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "@electric-sql/pglite": "^0.5.16",
     "next": "^16.4.5",
     "pg": "^8.23.1",
     "react": "^19.2.0",

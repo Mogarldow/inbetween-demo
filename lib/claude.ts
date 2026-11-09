@@ -2,7 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Checkin, Client, Event, Message, Task, Alert, ThoughtRecord, Score } from "./db";
 import { CRISIS_TAG } from "./risk";
 import { SOURCE_TAG, type Technique } from "./techniques";
-import { DEMO_MODE } from "./demo";
+import { CLI_MODE, DEMO_MODE } from "./demo";
+import { cliComplete } from "./cli";
 
 // Klient se vytváří až při prvním volání, aby build i ukázkový režim běžely bez klíče.
 let _anthropic: Anthropic | null = null;
@@ -146,6 +147,7 @@ export function streamText(params: {
   demoText: string;
 }) {
   if (DEMO_MODE) return demoStream(params.demoText, params.onDone);
+  if (CLI_MODE) return cliStream(params);
 
   const stream = anthropic().beta.messages.stream({
     model: MODEL,
@@ -201,6 +203,41 @@ export function streamText(params: {
   return { body };
 }
 
+/** Lokální režim přes Claude Code CLI: stejné rozhraní jako API stream. */
+function cliStream(params: Parameters<typeof streamText>[0]) {
+  const encoder = new TextEncoder();
+  const ac = new AbortController();
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let full = "";
+      try {
+        full = await cliComplete({
+          system: params.system,
+          messages: params.messages as { role: "user" | "assistant"; content: unknown }[],
+          onText: (t) => controller.enqueue(encoder.encode(t)),
+          signal: ac.signal,
+        });
+      } catch (err) {
+        console.error("Claude Code CLI:", err);
+        if (!full.trim()) {
+          full = params.fallbackText;
+          controller.enqueue(encoder.encode(full));
+        }
+      }
+      try {
+        await params.onDone?.({ text: full, refused: false });
+      } catch (e) {
+        console.error("onDone selhalo:", e);
+      }
+      controller.close();
+    },
+    cancel() {
+      ac.abort();
+    },
+  });
+  return { body };
+}
+
 /** Ukázkový režim: pošle připravený text po slovech, aby odpověď vypadala jako živá. */
 function demoStream(text: string, onDone?: (r: { text: string; refused: boolean }) => Promise<void>) {
   const encoder = new TextEncoder();
@@ -224,6 +261,7 @@ function demoStream(text: string, onDone?: (r: { text: string; refused: boolean 
 
 /** Jednorázové (nestreamované) volání, vrací celý text odpovědi. Pro strukturované návrhy (JSON). */
 export async function completeText(prompt: string, effort: "low" | "medium" | "high", maxTokens: number) {
+  if (CLI_MODE) return cliComplete({ messages: [{ role: "user", content: prompt }] });
   const msg = await anthropic().beta.messages.create({
     model: MODEL,
     max_tokens: maxTokens,

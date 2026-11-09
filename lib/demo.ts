@@ -4,7 +4,10 @@ import type { Alert, Checkin, Client, Event, Message, Task, ThoughtRecord, Score
 import { CRISIS_TAG, isRisky } from "./risk";
 import { CRISIS_TECHNIQUE_ID, SOURCE_TAG, type Technique } from "./techniques";
 
-export const DEMO_MODE = !process.env.ANTHROPIC_API_KEY;
+/** Lokálně: bez API klíče, ale s Claude Code CLI (předplatné). Zapíná CLAUDE_CLI=1. */
+export const CLI_MODE = !process.env.ANTHROPIC_API_KEY && process.env.CLAUDE_CLI === "1";
+export const DEMO_MODE = !process.env.ANTHROPIC_API_KEY && !CLI_MODE;
+export const AI_MODE: "api" | "cli" | "demo" = process.env.ANTHROPIC_API_KEY ? "api" : CLI_MODE ? "cli" : "demo";
 
 export function demoChatReply(text: string, client: Client, techniques: Technique[]) {
   const therapist = client.therapist.split(" ").at(-2) ?? "tvůj psycholog";
