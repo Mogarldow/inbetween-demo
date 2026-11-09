@@ -50,3 +50,5 @@ SELECT 'nikola', 'assistant', 'Ahoj Nikolo, jsem tu pro tebe. S čím ti můžu 
 WHERE NOT EXISTS (SELECT 1 FROM messages WHERE client_id = 'nikola');
 
 UPDATE clients SET reminders = (SELECT reminders FROM clients WHERE id = 'petra') WHERE id = 'nikola' AND reminders = '[]'::jsonb;
+
+UPDATE clients SET reminders = (SELECT jsonb_agg(r) FROM jsonb_array_elements(reminders) r WHERE r->>'title' <> 'Příprava na sezení') WHERE id = 'nikola';
