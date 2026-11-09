@@ -195,3 +195,16 @@ function demoStream(text: string, onDone?: (r: { text: string; refused: boolean 
   });
   return { body };
 }
+
+/** Jednorázové (nestreamované) volání, vrací celý text odpovědi. Pro strukturované návrhy (JSON). */
+export async function completeText(prompt: string, effort: "low" | "medium" | "high", maxTokens: number) {
+  const msg = await anthropic().beta.messages.create({
+    model: MODEL,
+    max_tokens: maxTokens,
+    messages: [{ role: "user", content: prompt }],
+    thinking: { type: "adaptive" },
+    output_config: { effort },
+    ...FALLBACK,
+  });
+  return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+}

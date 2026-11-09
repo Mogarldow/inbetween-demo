@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Alert, Checkin, Client, Event, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
-import { OutreachBox, PrepBox, ScoresBox, WaitlistView, consentLine } from "./extras";
+import { OutreachBox, PrepBox, ScoresBox, SessionNoteBox, WaitlistView, consentLine } from "./extras";
 import { TECHNIQUES, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 type ListClient = Client & { open_alerts: number; last_checkin: string | null };
@@ -215,6 +215,8 @@ function ClientDetail({ d, seen, reload }: { d: Detail; seen: Set<number>; reloa
         </div>
         <div className="decide">AI navrhuje, psycholog rozhoduje. Shrnutí není diagnóza ani doporučení léčby.</div>
       </div>
+
+      <SessionNoteBox client={d.client} onApplied={(p, t) => { setPlan(p); setAllowed(t); setPlanState(""); reload(); }} />
 
       <div className="box">
         <div className="row"><h3>Plán a techniky pro parťáka</h3><span className="label">Upravuje jen psycholog</span></div>

@@ -4,6 +4,9 @@
 import { useEffect, useState } from "react";
 import type { Client, Outreach, Score, WaitPerson } from "@/lib/db";
 import { QUESTIONNAIRES, band, type QKind } from "@/lib/questionnaires";
+import { TECHNIQUES } from "@/lib/techniques";
+
+const TECH_TITLES: Record<string, string> = Object.fromEntries(TECHNIQUES.map((t) => [t.id, t.title]));
 
 const post = (url: string, body: unknown) =>
   fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -163,6 +166,69 @@ export function WaitlistView({ client }: { client: Client }) {
         {triage && <div className="summary"><Mini md={triage} /></div>}
         <div className="decide">Pořadí určuje psycholog. Kladná odpověď na otázku 9 (myšlenky na smrt) se hlásí hned a nečeká na AI.</div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- zápis ze sezení → návrh plánu ---------- */
+type Proposal = { summary: string; plan: string; tasks: { title: string; hint: string; goal: number }[]; techniques: string[] };
+
+export function SessionNoteBox({ client, onApplied }: { client: Client; onApplied: (plan: string, techniques: string[]) => void }) {
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [prop, setProp] = useState<Proposal | null>(null);
+  const [status, setStatus] = useState("");
+
+  async function suggest() {
+    setBusy(true); setStatus(""); setProp(null);
+    const r = await post("/api/session-note", { clientId: client.id, note });
+    const j = await r.json();
+    setBusy(false);
+    if (!r.ok) { setStatus(j.error || "Návrh se nepovedl."); return; }
+    setProp(j);
+  }
+  async function apply() {
+    if (!prop) return;
+    const r = await fetch("/api/session-note", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientId: client.id, ...prop }) });
+    if (!r.ok) { setStatus("Uložení se nepovedlo."); return; }
+    onApplied(prop.plan, prop.techniques);
+    setProp(null); setNote("");
+    setStatus("Potvrzeno. Klient má nový plán a úkoly, parťák se jimi řídí od teď.");
+  }
+  const added = prop ? prop.techniques.filter((id) => !client.allowed_techniques.includes(id)) : [];
+  const removed = prop ? client.allowed_techniques.filter((id) => !prop.techniques.includes(id)) : [];
+  const title = (id: string) => TECH_TITLES[id] ?? id;
+
+  return (
+    <div className="box">
+      <div className="row"><h3>Zápis ze sezení</h3><span className="label">Po sezení · 1 minuta</span></div>
+      <p className="note" style={{ margin: 0 }}>Napište pár vět o sezení. AI z nich navrhne úpravu plánu, úkolů a technik. Nic se nezmění, dokud to nepotvrdíte.</p>
+      <textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Např.: Porada proběhla lépe, než čekala. Deník pomáhá, dech méně. Přidat expozici: na poradě jednou promluvit…" />
+      <div className="row">
+        <span className="note">{status}</span>
+        <button className="btn" disabled={busy || !note.trim()} onClick={suggest}>{busy ? "Připravuji…" : "Navrhnout úpravu plánu"}</button>
+      </div>
+      {prop && (
+        <div className="proposal">
+          <span className="label">Návrh od AI</span>
+          {prop.summary && <p style={{ margin: 0 }}>{prop.summary}</p>}
+          <b>Nový plán</b>
+          <div className="chg">{prop.plan}</div>
+          <b>Úkoly na tento týden</b>
+          <ul>{prop.tasks.map((t, i) => <li key={i}>{t.title} ({t.goal}× týdně): {t.hint}</li>)}</ul>
+          <b>Techniky</b>
+          <p style={{ margin: 0 }}>
+            {added.length ? `Přidat: ${added.map(title).join(", ")}. ` : ""}
+            {removed.length ? `Odebrat: ${removed.map(title).join(", ")}.` : ""}
+            {!added.length && !removed.length && "Beze změny."}
+          </p>
+          <div className="sos">
+            <button className="btn ghost" onClick={() => setProp(null)}>Zahodit</button>
+            <button className="btn" onClick={apply}>Potvrdit a poslat klientovi</button>
+          </div>
+        </div>
+      )}
+      <div className="decide">AI navrhuje, psycholog rozhoduje. Zápis zůstává jen u vás, klient uvidí jen potvrzený plán a úkoly.</div>
     </div>
   );
 }

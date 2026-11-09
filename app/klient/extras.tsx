@@ -259,3 +259,34 @@ export function MicButton({ value, onText, onStatus }: { value: string; onText: 
   );
 }
 
+
+/* ---------- týdenní přehled ---------- */
+export function WeekCard({ clientId, checkins, tasks, thoughts }: {
+  clientId: string; checkins: { anxiety: number }[]; tasks: { week_done: number }[]; thoughts: { intensity_before: number; intensity_after: number | null }[];
+}) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const practice = tasks.reduce((n, t) => n + t.week_done, 0);
+  const done = thoughts.filter((t) => t.intensity_after !== null);
+  const drop = done.length ? Math.round(done.reduce((a, t) => a + (t.intensity_before - (t.intensity_after ?? 0)), 0) / done.length) : 0;
+  const first = checkins[0], last = checkins.at(-1);
+  async function summarize() {
+    setBusy(true);
+    try { await streamInto(await post("/api/week", { clientId }), setText); } catch { setText("Shrnutí se teď nepovedlo."); }
+    setBusy(false);
+  }
+  return (
+    <div className="card">
+      <div className="row"><h3>Tvůj týden</h3><span className="label">Od minulého sezení</span></div>
+      <div className="week">
+        <div><b>{checkins.length}×</b><small>check-in</small></div>
+        <div><b>{practice}×</b><small>procvičení technik</small></div>
+        <div><b>{first && last ? `${first.anxiety} → ${last.anxiety}` : "–"}</b><small>úzkost (0–10)</small></div>
+      </div>
+      <p style={{ margin: 0, fontSize: 14 }}>
+        {text || (done.length ? `Do deníku jsi zapsal/a ${thoughts.length}× a emoce pak v průměru klesla o ${drop} %. To je přesně ta práce, která pomáhá.` : "Každý check-in a každé cvičení se počítá.")}
+      </p>
+      <button className="btn ghost" disabled={busy} onClick={summarize}>{busy ? "Píšu…" : text ? "Shrň znovu" : "Shrň mi týden"}</button>
+    </div>
+  );
+}

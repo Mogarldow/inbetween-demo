@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Client, Checkin, Message, Outreach, Score, Task } from "@/lib/db";
+import type { Client, Checkin, Message, Outreach, Score, Task, ThoughtRecord } from "@/lib/db";
 import type { QKind } from "@/lib/questionnaires";
-import { MicButton, OutreachCard, PrepCard, PrivacyCard, QuestionnaireSheet, QuestionnairesCard, RemindersCard, Toast } from "./extras";
+import { MicButton, OutreachCard, WeekCard, PrepCard, PrivacyCard, QuestionnaireSheet, QuestionnairesCard, RemindersCard, Toast } from "./extras";
 import { getTechnique, splitSources, CRISIS_TECHNIQUE_ID } from "@/lib/techniques";
 
 const CLIENT_ID = "petra"; // demo: jeden přihlášený klient
@@ -12,7 +12,7 @@ const CRISIS_TAG = "[KRIZE]";
 const MOODS: [number, string][] = [[1, "Hrozně"], [2, "Špatně"], [3, "Jde to"], [4, "Dobře"], [5, "Skvěle"]];
 const SUGGESTIONS = ["Zítra mám poradu a jsem z toho na nervy", "Nemůžu usnout", "Mám si zvýšit dávku léků?"];
 
-type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[]; scores: Score[]; outreach: Outreach[] };
+type State = { client: Client; checkins: Checkin[]; tasks: Task[]; messages: Message[]; scores: Score[]; outreach: Outreach[]; thoughts: ThoughtRecord[] };
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -151,6 +151,8 @@ function Home({ state, therapistFirst, reload, openChat }: {
           <b>{state.client.next_session} · {state.client.therapist}</b>
           <span className="note">Do té doby jsem tu pro tebe podle plánu, který jste spolu nastavili.</span>
         </div>
+
+        <WeekCard clientId={CLIENT_ID} checkins={state.checkins} tasks={state.tasks} thoughts={state.thoughts ?? []} />
 
         <div className="card">
           {saved === null ? (
