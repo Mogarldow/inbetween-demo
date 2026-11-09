@@ -1,8 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Checkin, Client, Event, Message, Task, Alert } from "./db";
 import { CRISIS_TAG } from "./risk";
+import { DEMO_MODE } from "./demo";
 
-export const anthropic = new Anthropic(); // čte ANTHROPIC_API_KEY z prostředí
+// Klient se vytváří až při prvním volání, aby build i ukázkový režim běžely bez klíče.
+let _anthropic: Anthropic | null = null;
+const anthropic = () => (_anthropic ??= new Anthropic()); // čte ANTHROPIC_API_KEY z prostředí
 export const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 
 // Server-side fallback: když bezpečnostní klasifikátor požadavek odmítne,
@@ -92,8 +95,12 @@ export function streamText(params: {
   fallbackText: string;
   /** Spustí se po dokončení odpovědi, ještě než se stream zavře (na Vercelu tak funkce neskončí dřív). */
   onDone?: (result: { text: string; refused: boolean }) => Promise<void>;
+  /** Text pro ukázkový režim bez API klíče. */
+  demoText: string;
 }) {
-  const stream = anthropic.beta.messages.stream({
+  if (DEMO_MODE) return demoStream(params.demoText, params.onDone);
+
+  const stream = anthropic().beta.messages.stream({
     model: MODEL,
     max_tokens: params.maxTokens,
     system: params.system,
@@ -144,5 +151,26 @@ export function streamText(params: {
     },
   });
 
+  return { body };
+}
+
+/** Ukázkový režim: pošle připravený text po slovech, aby odpověď vypadala jako živá. */
+function demoStream(text: string, onDone?: (r: { text: string; refused: boolean }) => Promise<void>) {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      await new Promise((r) => setTimeout(r, 600));
+      for (const word of text.split(/(?<=\s)/)) {
+        controller.enqueue(encoder.encode(word));
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      try {
+        await onDone?.({ text, refused: false });
+      } catch (e) {
+        console.error("onDone selhalo:", e);
+      }
+      controller.close();
+    },
+  });
   return { body };
 }

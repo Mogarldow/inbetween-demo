@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addAlert, addEvent, getClient, q, type Checkin, type Message } from "@/lib/db";
 import { companionSystemPrompt, streamText } from "@/lib/claude";
+import { demoChatReply } from "@/lib/demo";
 import { CRISIS_TAG, isRisky } from "@/lib/risk";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
     fallbackText: localRisk
       ? `${CRISIS_TAG} Děkuju, že jsi mi to napsal/a. Prosím, zavolej hned Linku první psychické pomoci 116 123, je tam někdo nonstop. Pokud jsi v bezprostředním ohrožení, volej 112. Tvůj psycholog dostal upozornění.`
       : SAFE_FALLBACK,
+    demoText: demoChatReply(message, client),
     // Po dokončení uložíme odpověď a případně upozornění.
     onDone: async ({ text: reply }) => {
       await q("INSERT INTO messages (client_id, role, content) VALUES ($1, 'assistant', $2)", [clientId, reply]);

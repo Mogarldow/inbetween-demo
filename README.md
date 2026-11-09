@@ -23,6 +23,10 @@ Demo pro 24H Challenge × Mozkovna. Všechna data jsou fiktivní.
 
 Přehled se obnovuje každé 3 vteřiny. Na prezentaci otevřete obě stránky vedle sebe.
 
+## Ukázkový režim zdarma
+
+Bez `ANTHROPIC_API_KEY` běží demo v ukázkovém režimu: parťák odpovídá předpřipravenými texty (včetně krizového protokolu) a shrnutí se sestaví z dat bez AI. Vercel (Hobby) i Neon (Free) jsou zdarma, takže demo nic nestojí. Po doplnění klíče do proměnných prostředí a novém nasazení přejde chat i shrnutí na živého Clauda.
+
 ## Technologie
 
 - **Next.js 16** (frontend i API v jednom projektu)
@@ -43,7 +47,7 @@ Přehled se obnovuje každé 3 vteřiny. Na prezentaci otevřete obě stránky v
 
 1. **Databáze:** na [neon.tech](https://neon.tech) založ projekt (přihlášení přes GitHub) a zkopíruj connection string.
 2. **Data:** u sebe spusť `DATABASE_URL="<connection string>" npm run db:setup`, nebo obsah `db/schema.sql` a `db/seed.sql` vlož do SQL editoru v Neonu.
-3. **Claude:** na [console.anthropic.com](https://console.anthropic.com) vytvoř API klíč a nabij kredit (na demo stačí pár dolarů).
+3. **Claude (volitelné):** na [console.anthropic.com](https://console.anthropic.com) vytvoř API klíč a nabij kredit. Bez klíče běží ukázkový režim zdarma.
 4. **Vercel:** na [vercel.com](https://vercel.com) zvol *Add New → Project*, vyber tento repozitář a v *Environment Variables* nastav `DATABASE_URL` a `ANTHROPIC_API_KEY`. Klikni na *Deploy*.
 
 Každý push do `main` se pak nasadí automaticky.
